@@ -25,7 +25,6 @@ class TransactionController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:income,expense',
-            'title' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
             'category_id' => 'nullable|exists:categories,id',
@@ -53,7 +52,7 @@ class TransactionController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:income,expense',
-            'title' => 'required|string|max:255',
+            
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
             'category_id' => 'nullable|exists:categories,id',
