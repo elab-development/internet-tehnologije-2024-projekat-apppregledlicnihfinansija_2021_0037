@@ -15,6 +15,7 @@ class Budget extends Model
         'amount',
         'month',
         'year',
+        'description'
     ];
 
     public function user() {
