@@ -28,6 +28,14 @@ Route::prefix('v1')->name('api.')->group(function () {
     // --- PROTECTED (zahteva Bearer token / Sanctum) ---
    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
+        Route::get('transactions/export', [\App\Http\Controllers\Api\TransactionController::class, 'export'])
+            ->name('transactions.export');
+
+            Route::get('transactions/export.csv', [\App\Http\Controllers\Api\TransactionController::class, 'export'])
+            ->name('transactions.export.csv');
+
+            Route::get('transactions/export.pdf', [\App\Http\Controllers\Api\TransactionController::class, 'export'])->name('transactions.export.pdf');
+
         // auth
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
@@ -48,6 +56,6 @@ Route::prefix('v1')->name('api.')->group(function () {
             ->name('transactions.bulk');
 
       
-
+      
     });
 });

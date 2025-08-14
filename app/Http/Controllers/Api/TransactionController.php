@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 
@@ -149,4 +150,81 @@ class TransactionController extends Controller
 
         return TransactionResource::collection(collect($created))->response()->setStatusCode(201);
     }
+
+    public function export(Request $request)
+{
+    $format = $request->query('format');
+    // ako si pogodila /export.pdf rutu, pretpostavi pdf; inače csv
+    if (!$format) {
+        $format = $request->routeIs('api.transactions.export.pdf') ? 'pdf' : 'csv';
+    }
+
+    $query = Transaction::query()
+        ->with('category')
+        ->where('user_id', $request->user()->id);
+
+    // isti filteri kao u index:
+    if ($request->filled('type')) {
+        $query->where('type', $request->string('type'));
+    }
+    if ($request->filled('category_id')) {
+        $query->where('category_id', $request->integer('category_id'));
+    }
+    if ($request->filled('from')) {
+        $query->whereDate('date', '>=', $request->date('from'));
+    }
+    if ($request->filled('to')) {
+        $query->whereDate('date', '<=', $request->date('to'));
+    }
+
+    $transactions = $query->orderBy('date')->get();
+
+    // ===== PDF =====
+    if ($format === 'pdf') {
+        $pdf = Pdf::loadView('exports.transactions', [
+            'transactions' => $transactions,
+            'user'         => $request->user(),
+            'generatedAt'  => now(),
+            'filters'      => [
+                'type'        => $request->input('type'),
+                'category_id' => $request->input('category_id'),
+                'from'        => $request->input('from'),
+                'to'          => $request->input('to'),
+            ],
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'transactions_'.now()->format('Y-m-d_H-i').'.pdf';
+        return $pdf->download($filename);
+    }
+
+    // ===== CSV (stream) =====
+    $filename = 'transactions_'.now()->format('Y-m-d_H-i').'.csv';
+    $headers = [
+        'Content-Type'        => 'text/csv; charset=UTF-8',
+        'Content-Disposition' => "attachment; filename=\"$filename\"",
+        'Cache-Control'       => 'no-store, no-cache',
+    ];
+
+    $callback = function () use ($transactions) {
+        $out = fopen('php://output', 'w');
+        // UTF-8 BOM (da Excel lijepo čita čćžđš)
+        fwrite($out, "\xEF\xBB\xBF");
+
+        // header
+        fputcsv($out, ['Date', 'Type', 'Category', 'Amount', 'Description']);
+
+        foreach ($transactions as $t) {
+            fputcsv($out, [
+                optional($t->date)->format('Y-m-d'),
+                $t->type,
+                optional($t->category)->name,
+                number_format((float)$t->amount, 2, '.', ''),
+                $t->description,
+            ]);
+        }
+        fclose($out);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
 }
