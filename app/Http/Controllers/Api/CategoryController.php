@@ -9,10 +9,34 @@ use Illuminate\Http\Request;
 class CategoryController extends Controller
 {
     // Pretpostavka: kategorije su globalne (bez user_id)
-    public function index()
+    public function index(Request $request)
     {
+        $query = Category::query()
+        ->select('categories.*')
+        ->withCount('transactions'); 
+
+        if ($request->filled('q')) {
+            $query->where('name', 'like', '%'.$request->query('q').'%');
+        }
+
+        if ($request->boolean('only_with_transactions')) {
+            $query->whereHas('transactions');
+        }
+
+        
+
+
+        $sort = $request->get('sort', 'name');
+        $dir  = str_starts_with($sort, '-') ? 'desc' : 'asc';
+        $col  = ltrim($sort, '-');
+        if (!in_array($col, ['name','created_at','transactions_count'])) {
+            $col = 'name';
+        }
+    
+
+
         return response()->json(
-            Category::orderBy('name')->paginate(50)
+              $query->orderBy($col, $dir)->paginate(50)
         );
     }
 

@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Password;           
+use Illuminate\Support\Facades\Hash;               
+use Illuminate\Validation\Rules\Password as PasswordRule;
+use Illuminate\Auth\Events\PasswordReset;         
+use Illuminate\Support\Str;                        
+use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -64,4 +67,53 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out']);
     }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => ['required','email'],
+        ]);
+
+        
+        $status = Password::sendResetLink($request->only('email'));
+
+        return response()->json([
+            'message' => __($status),
+        ], $status === Password::RESET_LINK_SENT ? 200 : 400);
+    }
+
+    // POST /api/v1/auth/reset-password
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token'                 => ['required'],
+            'email'                 => ['required','email'],
+            'password'              => ['required','confirmed', PasswordRule::min(8)],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email','password','password_confirmation','token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                ])->setRememberToken(Str::random(60));
+
+                $user->save();
+
+                //izloguj sanctum tokene
+                if (method_exists($user, 'tokens')) {
+                    $user->tokens()->delete();
+                }
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json(['message' => __($status)], 200);
+        }
+
+        return response()->json(['message' => __($status)], 400);
+    }
+
 }

@@ -18,6 +18,13 @@ Route::prefix('v1')->name('api.')->group(function () {
         ->middleware('throttle:login') 
         ->name('auth.login');
 
+        
+        Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])
+            ->name('auth.forgot');
+
+        Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])
+            ->name('auth.reset');
+
     // --- PROTECTED (zahteva Bearer token / Sanctum) ---
    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
@@ -39,5 +46,8 @@ Route::prefix('v1')->name('api.')->group(function () {
 
         Route::post('transactions/bulk', [TransactionApiController::class, 'bulkStore'])
             ->name('transactions.bulk');
+
+      
+
     });
 });

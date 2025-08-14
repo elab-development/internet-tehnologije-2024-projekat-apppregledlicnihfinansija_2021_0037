@@ -10,12 +10,77 @@ class SavingsGoalController extends Controller
 {
     public function index(Request $request)
     {
-        $page = SavingsGoal::where('user_id', $request->user()->id)
-            ->latest()->paginate(15);
-
-        return response()->json($page);
+        // Paginacija: per_page (1–100), podrazumevano 15
+        $perPage = max(1, min((int) $request->query('per_page', 15), 100));
+    
+        $query = SavingsGoal::query()
+            ->where('user_id', $request->user()->id)
+            ->select('savings_goals.*')
+            // izračunamo progress (0–1) da možemo da filtriramo/sortiramo po njemu
+            ->selectRaw('CASE WHEN target_amount > 0 THEN (current_amount / target_amount) ELSE 0 END AS progress_ratio');
+    
+        // Pretraga po nazivu/opisu (?q=auto)
+        if ($request->filled('q')) {
+            $q = $request->query('q');
+            $query->where(function ($qq) use ($q) {
+                $qq->where('name', 'like', "%{$q}%")
+                   ->orWhere('description', 'like', "%{$q}%");
+            });
+        }
+    
+        // Filtri po ciljanoj sumi
+        if ($request->filled('min_target')) {
+            $query->where('target_amount', '>=', (float) $request->query('min_target'));
+        }
+        if ($request->filled('max_target')) {
+            $query->where('target_amount', '<=', (float) $request->query('max_target'));
+        }
+    
+        // Filtri po progresu (kao 0–1 ili 0–100%)
+        if ($request->filled('min_progress')) {
+            $min = (float) $request->query('min_progress');
+            if ($min > 1) { $min /= 100; }
+            $query->having('progress_ratio', '>=', $min);
+        }
+        if ($request->filled('max_progress')) {
+            $max = (float) $request->query('max_progress');
+            if ($max > 1) { $max /= 100; }
+            $query->having('progress_ratio', '<=', $max);
+        }
+    
+        // Rok (deadline)
+        if ($request->filled('due_before')) {
+            $query->whereDate('deadline', '<=', $request->date('due_before'));
+        }
+        if ($request->filled('due_after')) {
+            $query->whereDate('deadline', '>=', $request->date('due_after'));
+        }
+    
+       //samo ostvarenii ciljevi
+        if ($request->boolean('achieved')) {
+            $query->whereColumn('current_amount', '>=', 'target_amount');
+        }
+    
+        
+        $sort = $request->get('sort', 'deadline');
+        $dir  = str_starts_with($sort, '-') ? 'desc' : 'asc';
+        $col  = ltrim($sort, '-');
+    
+        $map = [
+            'name'           => 'name',
+            'deadline'       => 'deadline',
+            'target_amount'  => 'target_amount',
+            'current_amount' => 'current_amount',
+            'created_at'     => 'created_at',
+            'progress'       => 'progress_ratio',
+        ];
+        $col = $map[$col] ?? 'deadline';
+    
+        $query->orderBy($col, $dir)->orderBy('id', 'desc');
+    
+        return response()->json($query->paginate($perPage));
     }
-
+    
     public function store(Request $request)
     {
         $data = $request->validate([

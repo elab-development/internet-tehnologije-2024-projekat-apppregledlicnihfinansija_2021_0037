@@ -17,6 +17,7 @@ class TransactionController extends Controller
     // GET /api/v1/transactions
     public function index(Request $request)
     {
+        $perPage = max(1, min((int) $request->query('per_page', 15), 100));
         $query = Transaction::query()
             ->with('category')
             ->where('user_id', $request->user()->id);
@@ -44,7 +45,7 @@ class TransactionController extends Controller
         }
         $query->orderBy($column, $direction);
 
-        $page = $query->paginate(15);
+        $page = $query->paginate($perPage);
 
         // Resource kolekcija (ima links + meta automatski)
         return TransactionResource::collection($page);
@@ -113,11 +114,13 @@ class TransactionController extends Controller
     // GET /api/v1/categories/{category}/transactions  (dodatna, "nested")
     public function byCategory(Request $request, Category $category)
     {
+        $perPage = max(1, min((int) $request->query('per_page', 15), 100));
+
         $page = Transaction::with('category')
             ->where('user_id', $request->user()->id)
             ->where('category_id', $category->id)
             ->orderByDesc('date')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return TransactionResource::collection($page);
     }
