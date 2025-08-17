@@ -15,12 +15,13 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* protected (za sada “pusti sve”, kasnije dodamo auth) */}
+      {/* protected */}
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/budgets" element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
       <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
       <Route path="/savings-goals" element={<ProtectedRoute><SavingsGoals /></ProtectedRoute>} />
+      
 
       {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

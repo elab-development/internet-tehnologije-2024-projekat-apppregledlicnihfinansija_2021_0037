@@ -1,11 +1,12 @@
 import axios from "axios";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+const client = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1",
+  headers: { Accept: "application/json" },
 });
 
 // ubacujemo Bearer token ako postoji
-api.interceptors.request.use((config) => {
+client.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -14,7 +15,7 @@ api.interceptors.request.use((config) => {
 });
 
 // globalno hvatamo 401 i čistimo token
-api.interceptors.response.use(
+client.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err?.response?.status === 401) {
@@ -28,5 +29,5 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default client;
 
