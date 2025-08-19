@@ -36,19 +36,19 @@ export default function Dashboard() {
           <CardLink
             to="/budgets"
             title="Budžeti"
-            desc="Mesečni/nedeljni budžeti (uskoro)"
+            desc="Mesečni/nedeljni budžeti"
             emoji="🧮"
           />
           <CardLink
             to="/categories"
             title="Kategorije"
-            desc="Upravljaj kategorijama troškova (uskoro)"
+            desc="Upravljaj kategorijama troškova"
             emoji="🏷️"
           />
           <CardLink
             to="/savings-goals"
             title="Ciljevi štednje"
-            desc="Prati svoje ciljeve (uskoro)"
+            desc="Prati svoje ciljeve"
             emoji="🎯"
           />
         </section>
