@@ -7,6 +7,8 @@ import Transactions from "./pages/Transactions";
 import Budgets from "./pages/Budgets";
 import Categories from "./pages/Categories";
 import SavingsGoals from "./pages/SavingsGoals";
+import Profile from "./pages/Profile";
+import ResetPassword from "./pages/ResetPassword";
 
 export default function App() {
   return (
@@ -21,7 +23,10 @@ export default function App() {
       <Route path="/budgets" element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
       <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
       <Route path="/savings-goals" element={<ProtectedRoute><SavingsGoals /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
       {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

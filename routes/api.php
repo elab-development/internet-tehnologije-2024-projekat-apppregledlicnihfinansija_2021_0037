@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\TransactionController as TransactionApiController;
@@ -56,6 +58,10 @@ Route::prefix('v1')->name('api.')->group(function () {
             ->name('transactions.bulk');
 
       
+            Route::get('user', function (Request $request) {
+                return response()->json(['data' => $request->user()]);
+            })->name('user');
+            
       
     });
 });
