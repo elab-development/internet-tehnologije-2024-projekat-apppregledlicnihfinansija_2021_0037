@@ -153,8 +153,12 @@ class TransactionController extends Controller
 
     public function export(Request $request)
 {
-    $format = $request->query('format');
-    // ako si pogodila /export.pdf rutu, pretpostavi pdf; inače csv
+    $format = $request->query('format', 'csv');
+
+if ($format === 'pdf' && $request->user()->role !== 'premium') {
+    return response()->json(['message' => 'PDF export is available for premium users only.'], 403);
+}
+
     if (!$format) {
         $format = $request->routeIs('api.transactions.export.pdf') ? 'pdf' : 'csv';
     }

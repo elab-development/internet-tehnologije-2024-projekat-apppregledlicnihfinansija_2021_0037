@@ -10,6 +10,8 @@ use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Auth\Events\PasswordReset;         
 use Illuminate\Support\Str;                        
 use App\Models\User;
+use Illuminate\Validation\ValidationException;
+
 
 class AuthController extends Controller
 {

@@ -10,6 +10,10 @@ use App\Http\Controllers\Api\BudgetController as BudgetApiController;
 use App\Http\Controllers\Api\CategoryController as CategoryApiController;
 use App\Http\Controllers\Api\SavingsGoalController as SavingsGoalApiController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\ExchangeController;
+
+
+
 
 // Sve API rute su pod /api/v1 i imena kreću sa api.*
 Route::prefix('v1')->name('api.')->group(function () {
@@ -37,6 +41,9 @@ Route::prefix('v1')->name('api.')->group(function () {
             ->name('transactions.export.csv');
 
             Route::get('transactions/export.pdf', [\App\Http\Controllers\Api\TransactionController::class, 'export'])->name('transactions.export.pdf');
+            
+            Route::get('exchange/convert', [\App\Http\Controllers\Api\ExchangeController::class, 'convert'])
+    ->name('exchange.convert');
 
         // auth
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
@@ -55,7 +62,9 @@ Route::prefix('v1')->name('api.')->group(function () {
             ->name('categories.transactions');
 
         Route::post('transactions/bulk', [TransactionApiController::class, 'bulkStore'])
+            ->middleware(['auth:sanctum','role:premium'])
             ->name('transactions.bulk');
+
 
       
             Route::get('user', function (Request $request) {
