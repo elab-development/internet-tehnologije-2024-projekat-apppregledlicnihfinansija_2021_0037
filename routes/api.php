@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
-
+use App\Http\Controllers\Api\AccountController;
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\TransactionController as TransactionApiController;
@@ -33,6 +33,10 @@ Route::prefix('v1')->name('api.')->group(function () {
 
     // --- PROTECTED (zahteva Bearer token / Sanctum) ---
    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+
+    Route::get('user', [AccountController::class, 'me'])->name('user'); // ako već nemaš svoj
+    Route::post('account/upgrade', [AccountController::class, 'upgrade'])->name('account.upgrade');
+    
 
         Route::get('transactions/export', [\App\Http\Controllers\Api\TransactionController::class, 'export'])
             ->name('transactions.export');
@@ -68,9 +72,8 @@ Route::prefix('v1')->name('api.')->group(function () {
 
       
             Route::get('user', function (Request $request) {
-                return response()->json(['data' => $request->user()]);
+                return $request->user(); 
             })->name('user');
-            
       
     });
 });

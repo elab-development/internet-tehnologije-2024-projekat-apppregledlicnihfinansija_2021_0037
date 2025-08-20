@@ -13,6 +13,8 @@ const SORT_OPTIONS = [
   { value: "amount", label: "Iznos ↑" },
 ];
 
+
+
 function fmt(n) {
   if (n == null) return "—";
   const num = Number(n);
@@ -49,6 +51,9 @@ export default function Transactions() {
     category_id: "",
     description: "",
   });
+
+  const [role, setRole] = useState("user");
+  const canPdf = useMemo(() => role === "premium" || role === "admin", [role]);
 
   // dohvat kategorija
   async function fetchCategories() {
@@ -97,7 +102,11 @@ export default function Transactions() {
   useEffect(() => {
     fetchCategories();
     fetchTransactions(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    client.get("/user")
+    .then(({ data }) => setRole(data?.role || "user"))
+    .catch(() => setRole("user"));
+
   }, []);
 
   // submit filtera
@@ -284,7 +293,15 @@ export default function Transactions() {
         <section className="panel">
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
             <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
-            <Button variant="secondary" onClick={() => exportFile("pdf")}>⬇️ Export PDF</Button>
+           <Button
+  variant="secondary"
+  onClick={() => exportFile("pdf")}
+  disabled={!canPdf}
+  title={canPdf ? "" : "PDF export je samo za premium/admin korisnike"}
+>
+  ⬇️ Export PDF
+</Button>
+
           </div>
 
           {error && <div className="alert alert--error">{error}</div>}

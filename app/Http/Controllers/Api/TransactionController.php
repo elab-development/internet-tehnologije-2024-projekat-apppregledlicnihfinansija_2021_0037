@@ -153,19 +153,27 @@ class TransactionController extends Controller
 
     public function export(Request $request)
 {
-    $format = $request->query('format', 'csv');
-
-if ($format === 'pdf' && $request->user()->role !== 'premium') {
-    return response()->json(['message' => 'PDF export is available for premium users only.'], 403);
-}
-
+    $format = $request->query('format');
     if (!$format) {
         $format = $request->routeIs('api.transactions.export.pdf') ? 'pdf' : 'csv';
     }
+    $format = strtolower($format);
 
+    // 2) Dozvoljeni formati
+    if (!in_array($format, ['csv','pdf'], true)) {
+        return response()->json(['message' => 'Invalid export format. Use csv or pdf.'], 422);
+    }
+
+    // 3) Role check (tek kad znamo format)
+    if ($format === 'pdf' && $request->user()->role !== 'premium') {
+        return response()->json(['message' => 'PDF export is available for premium users only.'], 403);
+    }
+
+   
     $query = Transaction::query()
         ->with('category')
         ->where('user_id', $request->user()->id);
+
 
     // isti filteri kao u index:
     if ($request->filled('type')) {
@@ -180,6 +188,12 @@ if ($format === 'pdf' && $request->user()->role !== 'premium') {
     if ($request->filled('to')) {
         $query->whereDate('date', '<=', $request->date('to'));
     }
+
+    if ($request->filled('q')) {
+        $q = $request->string('q');
+        $query->where('description', 'like', '%'.$q.'%');
+    }
+    
 
     $transactions = $query->orderBy('date')->get();
 

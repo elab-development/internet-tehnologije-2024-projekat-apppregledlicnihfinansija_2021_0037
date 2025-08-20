@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Topbar from "../components/Topbar";
 import client from "../api/client";
+import Button from "../components/Button";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -13,6 +14,9 @@ export default function Profile() {
   });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [upgrading, setUpgrading] = useState(false);
+  const [msg, setMsg] = useState("");
+
 
   useEffect(() => {
     let mounted = true;
@@ -90,6 +94,24 @@ export default function Profile() {
     }
   }
 
+  async function upgrade() {
+    setUpgrading(true);
+    setMsg("");
+    try {
+      const { data } = await client.post("/account/upgrade"); // POST /api/v1/account/upgrade
+      setMsg(data?.message || "Uspešno!");
+      // osveži user-a
+      try {
+        const { data: meRes } = await client.get("/user");
+        setUser(meRes?.data ?? meRes);
+      } catch {}
+    } catch (e) {
+      setMsg(e?.response?.data?.message || "Greška pri nadogradnji.");
+    } finally {
+      setUpgrading(false);
+    }
+  }  
+
   return (
     <>
       <Topbar />
@@ -113,8 +135,13 @@ export default function Profile() {
                   Član od: {new Date(user.created_at).toLocaleDateString()}
                 </div>
               )}
+                {/* NOVO: uloga */}
+                  <div style={{ marginTop: 6 }}>
+                  <span style={{ fontSize: 13, color: "#666" }}>Uloga: </span>
+                  <b>{user?.role ?? "user"}</b>
+                </div>
+              </div>
             </div>
-          </div>
 
           <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={() => downloadExport("csv")} style={styles.btn}>
@@ -125,6 +152,24 @@ export default function Profile() {
             </button>
           </div>
         </section>
+
+        {msg && (
+  <div className="alert" style={{ marginTop: 8 }}>
+    {msg}
+  </div>
+)}
+
+{user?.role !== "premium" ? (
+  <div style={{ marginTop: 8 }}>
+    <Button onClick={upgrade} loading={upgrading}>
+      ⭐ Postani premium
+    </Button>
+  </div>
+) : (
+  <p style={{ marginTop: 8 }} className="muted">
+    Premium nalog je aktivan — PDF eksport i ostale premium opcije su otključane. 🎉
+  </p>
+)}
 
         <section style={{ ...styles.card, marginTop: 16 }}>
           <h2 style={{ marginBottom: 12 }}>Statistika</h2>
