@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import Button from "../components/Button";
 import { useAuth } from "../context/AuthContext";
+import BudgetUsage from "../components/BudgetUsage"
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -210,6 +211,8 @@ export default function Profile() {
             </div>
           )}
         </section>
+
+        <BudgetUsage />
       </main>
     </>
   );
