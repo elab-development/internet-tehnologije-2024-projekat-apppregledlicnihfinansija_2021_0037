@@ -132,6 +132,7 @@ export default function Transactions() {
       };
       await client.post("/transactions", payload);
       await refreshMe(); 
+      window.dispatchEvent(new Event("transactions:changed"));
       setForm({ type: "expense", amount: "", date: "", category_id: "", description: "" });
       fetchTransactions(1);
     } catch (e) {
@@ -146,7 +147,7 @@ export default function Transactions() {
     if (!confirm("Obrisati ovu transakciju?")) return;
     try {
       await client.delete(`/transactions/${id}`);
-      // osveži listu (ostani na stranici ako može)
+      window.dispatchEvent(new Event("transactions:changed"))
       const nextPage = meta?.current_page ?? page;
       fetchTransactions(nextPage);
     } catch (e) {
