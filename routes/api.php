@@ -45,6 +45,12 @@ Route::prefix('v1')->name('api.')->group(function () {
             ->name('transactions.export.csv');
 
         Route::get('transactions/export.pdf', [\App\Http\Controllers\Api\TransactionController::class, 'export'])->name('transactions.export.pdf');
+        
+        Route::middleware('throttle:10,1')->group(function () {
+            Route::get('/rates/convert', [ExchangeController::class, 'convert'])->name('rates.convert');
+            Route::get('/rates/rate', [ExchangeController::class, 'rate'])->name('rates.rate');
+            Route::get('/rates/currencies', [ExchangeController::class, 'currencies'])->name('rates.currencies');
+        });
 
         Route::get('exchange/convert', [\App\Http\Controllers\Api\ExchangeController::class, 'convert'])
             ->name('exchange.convert');
