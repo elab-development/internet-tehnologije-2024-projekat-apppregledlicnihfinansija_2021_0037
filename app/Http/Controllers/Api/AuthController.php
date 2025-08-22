@@ -21,23 +21,21 @@ class AuthController extends Controller
         $data = $request->validate([
             'name'     => ['required','string','max:255'],
             'email'    => ['required','email','max:255','unique:users,email'],
-            'password' => ['required','string','min:8','confirmed'], // + password_confirmation
+            'password' => ['required','string','min:8','confirmed'],
         ]);
 
         $user = User::create([
-            'name'              => $data['name'],
-            'email'             => $data['email'],
-            'password'          => Hash::make($data['password']),
-            'email_verified_at' => now(), // po potrebi; ili izbaci ako želiš verifikaciju e-pošte
+            'name'     => $data['name'],
+            'email'    => $data['email'],
+            'password' => Hash::make($data['password']),
+            'role'     => 'user',
         ]);
 
         $token = $user->createToken('api')->plainTextToken;
 
-        return response()->json([
-            'user'  => ['id'=>$user->id,'name'=>$user->name,'email'=>$user->email],
-            'token' => $token,
-        ], 201);
+        return response()->json(['message' => 'Registered'], 201);
     }
+
 
     // POST /api/v1/auth/login
     public function login(Request $request)
@@ -57,8 +55,13 @@ class AuthController extends Controller
 
         $token = $user->createToken('api')->plainTextToken;
 
-        return response()->json([
-            'user'  => ['id'=>$user->id,'name'=>$user->name,'email'=>$user->email],
+         return response()->json([
+            'user'  => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+                'role'  => $user->role ?? 'user',
+            ],
             'token' => $token,
         ]);
     }

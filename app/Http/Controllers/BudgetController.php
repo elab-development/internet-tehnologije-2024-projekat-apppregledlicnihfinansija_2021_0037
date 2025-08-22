@@ -26,9 +26,7 @@ class BudgetController extends Controller
         $request->validate([
             'category_id' => 'required|exists:categories,id',
             'amount' => 'required|numeric|min:0',
-            'month'       => ['required','integer','between:1,12'],
-            'year'        => ['required','integer','between:2000,2100'],
-            'description' => ['nullable','string','max:1000'],  
+            'month' => 'required|date',
         ]);
 
         $data = $request->only('category_id', 'amount', 'month');
@@ -59,11 +57,9 @@ class BudgetController extends Controller
     public function update(Request $request, Budget $budget)
     {
         $request->validate([
-            'category_id' => ['sometimes','required','exists:categories,id'],
-            'amount'      => ['sometimes','required','numeric','min:0.01'],
-            'month'       => ['sometimes','required','integer','between:1,12'],
-            'year'        => ['sometimes','required','integer','between:2000,2100'],
-            'description' => ['nullable','string','max:1000'], 
+            'category_id' => 'required|exists:categories,id',
+            'amount' => 'required|numeric|min:0',
+            'month' => 'required|date',
         ]);
 
         $budget->update($request->only('category_id', 'amount', 'month'));

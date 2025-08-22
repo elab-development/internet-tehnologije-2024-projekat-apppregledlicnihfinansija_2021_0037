@@ -6,6 +6,12 @@ import TextInput from "../components/TextInput";
 import Button from "../components/Button";
 
 const PER_PAGE = 10;
+function splitYearMonth(yyyyMm) {
+  if (!yyyyMm) return { year: "", month: "" };
+  const [y, m] = yyyyMm.split("-").map(Number);
+  return { year: y, month: m };
+}
+
 
 function monthToRange(yyyyMm) {
   // yyyyMm: '2025-08' → start: '2025-08-01', end: '2025-08-31'
@@ -28,10 +34,15 @@ export default function Budgets() {
   const [error, setError] = useState("");
 
   // filteri
-  const [q, setQ] = useState("");              // pretraga po nazivu/opisu (ako je podržano)
+  const [q, setQ] = useState("");             
   const [categoryId, setCategoryId] = useState("");
-  const [month, setMonth] = useState("");       // input type="month" npr. 2025-08
+  const [month, setMonth] = useState("");       
   const [page, setPage] = useState(1);
+
+ 
+const [amountMin, setAmountMin] = useState("");
+const [amountMax, setAmountMax] = useState("");
+const [sort, setSort] = useState("-created_at");
 
   // kategorije
   const [cats, setCats] = useState([]);
@@ -39,13 +50,12 @@ export default function Budgets() {
 
   // kreiranje
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    amount: "",        // ⟵ ako backend očekuje `limit`, samo preimenuj u payloadu
-    month: "",         // bira se kao 2025-08; u payload prevodimo u start/end
-    category_id: "",
-    notes: "",
-  });
+const [form, setForm] = useState({
+  amount: "",
+  month: "",           
+  category_id: "",
+  description: "",      
+});
 
   // dohvat kategorija
   async function fetchCategories() {
@@ -62,31 +72,33 @@ export default function Budgets() {
   }
 
   // dohvat budžeta
-  async function fetchBudgets(p = 1) {
-    setLoading(true);
-    setError("");
-    try {
-      const params = { page: p, per_page: PER_PAGE };
-      if (q.trim()) params.q = q.trim();
-      if (categoryId) params.category_id = categoryId;
-      if (month) {
-        const { start, end } = monthToRange(month);
-        params.from = start;
-        params.to = end;
-      }
-      const { data } = await client.get("/budgets", { params });
-      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setItems(list);
-      setMeta(data?.meta ?? null);
-      setPage(data?.meta?.current_page ?? p);
-    } catch (e) {
-      setError(e?.response?.data?.message || "Greška pri učitavanju budžeta.");
-      setItems([]);
-      setMeta(null);
-    } finally {
-      setLoading(false);
+async function fetchBudgets(p = 1) {
+  setLoading(true);
+  setError("");
+  try {
+    const params = { page: p, per_page: PER_PAGE, sort };
+    if (categoryId) params.category_id = Number(categoryId);
+    if (month) {
+      const { year, month: m } = splitYearMonth(month);
+      params.year = year;
+      params.month = m;
     }
+    if (amountMin) params.amount_min = Number(amountMin);
+    if (amountMax) params.amount_max = Number(amountMax);
+
+    const { data } = await client.get("/budgets", { params });
+    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    setItems(list);
+    setMeta(data?.meta ?? null);
+    setPage(data?.meta?.current_page ?? p);
+  } catch (e) {
+    setError(e?.response?.data?.message || "Greška pri učitavanju budžeta.");
+    setItems([]);
+    setMeta(null);
+  } finally {
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     fetchCategories();
@@ -102,32 +114,40 @@ export default function Budgets() {
 
   // kreiranje novog budžeta
   async function handleCreate(e) {
-    e.preventDefault();
-    setCreating(true);
-    try {
-      const { start, end } = monthToRange(form.month);
+  e.preventDefault();
+  setCreating(true);
+  try {
+    const { year, month: m } = splitYearMonth(form.month);
 
-      // ⚠️ PRILAGODI OVO svojim poljima u backendu:
-      // ako kontroler očekuje `limit`, promeni `amount: Number(form.amount)` u `limit: Number(form.amount)`
-      // ako očekuje `starts_at` i `ends_at`, koristi ta imena umesto `start_date` i `end_date`.
-      const payload = {
-        name: form.name,
-        amount: Number(form.amount),       // ili: limit: Number(form.amount)
-        start_date: start,                 // ili: starts_at: start
-        end_date: end,                     // ili: ends_at: end
-        category_id: form.category_id ? Number(form.category_id) : null,
-        notes: form.notes || "",
-      };
+    const payload = {
+      category_id: Number(form.category_id),   
+      amount: Number(form.amount),            
+      month: m,                                
+      year,                                    
+      description: form.description || "",     
+    };
 
-      await client.post("/budgets", payload);
-      setForm({ name: "", amount: "", month: "", category_id: "", notes: "" });
-      fetchBudgets(1);
-    } catch (e) {
-      alert(e?.response?.data?.message || "Kreiranje nije uspelo.");
-    } finally {
-      setCreating(false);
-    }
+    await client.post("/budgets", payload);
+    setForm({ amount: "", month: "", category_id: "", description: "" });
+    fetchBudgets(1);
+  } catch (e) {
+    const errs = e?.response?.data?.errors;
+    const msg = e?.response?.data?.message || "Kreiranje nije uspelo.";
+    alert(
+      msg +
+        (errs
+          ? "\n" +
+            Object.entries(errs)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+              .join("\n")
+          : "")
+    );
+  } finally {
+    setCreating(false);
   }
+}
+
+
 
   // brisanje
   async function handleDelete(id) {
@@ -161,39 +181,68 @@ export default function Budgets() {
         {/* FILTERI */}
         <section className="panel" style={{ marginBottom: 16 }}>
           <form
-            onSubmit={onSearch}
-            style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr auto" }}
-          >
-            <TextInput
-              label="Pretraga"
-              placeholder="naziv/napomena…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <label>
-              <div className="label">Kategorija</div>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                disabled={catsLoading}
-              >
-                {catOptions.map((c) => (
-                  <option key={c.id ?? "all"} value={c.id ?? ""}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <TextInput
-              label="Mesec"
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-            />
-            <div style={{ alignSelf: "end" }}>
-              <Button type="submit" variant="secondary">Primeni</Button>
-            </div>
-          </form>
+  onSubmit={onSearch}
+  style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr auto" }}
+>
+  <label>
+    <div className="label">Kategorija</div>
+    <select
+      value={categoryId}
+      onChange={(e) => setCategoryId(e.target.value)}
+      disabled={catsLoading}
+    >
+      {catOptions.map((c) => (
+        <option key={c.id ?? "all"} value={c.id ?? ""}>
+          {c.name}
+        </option>
+      ))}
+    </select>
+  </label>
+
+  <TextInput
+    label="Mesec"
+    type="month"
+    value={month}
+    onChange={(e) => setMonth(e.target.value)}
+  />
+
+  <TextInput
+    label="Iznos min"
+    type="number"
+    min="0"
+    step="0.01"
+    value={amountMin}
+    onChange={(e) => setAmountMin(e.target.value)}
+  />
+
+  <TextInput
+    label="Iznos max"
+    type="number"
+    min="0"
+    step="0.01"
+    value={amountMax}
+    onChange={(e) => setAmountMax(e.target.value)}
+  />
+
+  <label>
+    <div className="label">Sort</div>
+    <select value={sort} onChange={(e) => setSort(e.target.value)}>
+      <option value="-created_at">Najnovije</option>
+      <option value="created_at">Najstarije</option>
+      <option value="-amount">Iznos ↓</option>
+      <option value="amount">Iznos ↑</option>
+      <option value="year">Godina ↑</option>
+      <option value="-year">Godina ↓</option>
+      <option value="month">Mesec ↑</option>
+      <option value="-month">Mesec ↓</option>
+    </select>
+  </label>
+
+  <div style={{ alignSelf: "end" }}>
+    <Button type="submit" variant="secondary">Primeni</Button>
+  </div>
+</form>
+
         </section>
 
         {/* KREIRANJE */}
@@ -204,45 +253,43 @@ export default function Budgets() {
             style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 160px 160px 1fr 2fr auto" }}
           >
             <TextInput
-              label="Naziv"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-            <TextInput
-              label="Iznos (limit)"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              required
-            />
-            <TextInput
-              label="Mesec"
-              type="month"
-              value={form.month}
-              onChange={(e) => setForm((f) => ({ ...f, month: e.target.value }))}
-              required
-            />
-            <label>
-              <div className="label">Kategorija (opciono)</div>
-              <select
-                value={form.category_id}
-                onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
-              >
-                <option value="">—</option>
-                {cats.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </label>
-            <TextInput
-              label="Napomena"
-              placeholder="npr. mesečni limit za hranu"
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            />
+  label="Iznos (limit)"
+  type="number"
+  min="0"
+  step="0.01"
+  value={form.amount}
+  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} 
+  required
+/>
+
+<TextInput
+  label="Mesec"
+  type="month"
+  value={form.month}
+  onChange={(e) => setForm((f) => ({ ...f, month: e.target.value }))} 
+  required
+/>
+
+<label>
+  <div className="label">Kategorija</div>
+  <select
+    value={form.category_id}
+    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))} 
+    required
+  >
+    <option value="">— izaberi —</option>
+    {cats.map((c) => (
+      <option key={c.id} value={c.id}>{c.name}</option>
+    ))}
+  </select>
+</label>
+
+<TextInput
+  label="Opis (opciono)"
+  placeholder="npr. mesečni limit za hranu"
+  value={form.description}
+  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+/>
             <div style={{ alignSelf: "end" }}>
               <Button type="submit" loading={creating}>Sačuvaj</Button>
             </div>
@@ -262,7 +309,7 @@ export default function Budgets() {
                 <thead>
                   <tr>
                     <th style={{ width: 56 }}>#</th>
-                    <th>Naziv</th>
+                    <th>Opis</th>
                     <th style={{ width: 200 }}>Period</th>
                     <th style={{ width: 180 }}>Kategorija</th>
                     <th className="text-right" style={{ width: 140 }}>Limit</th>
@@ -273,16 +320,22 @@ export default function Budgets() {
                   {items.map((b) => (
                     <tr key={b.id}>
                       <td>{b.id}</td>
-                      <td>{b.name ?? b.title ?? "(bez naziva)"}</td>
                       <td>
-                        {/* pokuša da prikaže po onome što backend vraća */}
-                        {b.start_date && b.end_date
-                          ? `${b.start_date} → ${b.end_date}`
-                          : b.starts_at && b.ends_at
-                          ? `${b.starts_at} → ${b.ends_at}`
-                          : b.month
-                          ? b.month
-                          : "—"}
+  <div style={{ fontWeight: 600 }}>
+    {b.category?.name ?? (b.category_id ? `#${b.category_id}` : "—")}
+  </div>
+  {b.description ? (
+    <div className="muted" style={{ fontSize: 12 }}>{b.description}</div>
+  ) : null}
+</td>
+
+                      <td>
+                       
+  {b.year && b.month
+    ? `${b.year}-${String(b.month).padStart(2, "0")}`
+    : "—"}
+
+
                       </td>
                       <td>{b.category?.name ?? (b.category_id ? `#${b.category_id}` : "—")}</td>
                       <td className="text-right">

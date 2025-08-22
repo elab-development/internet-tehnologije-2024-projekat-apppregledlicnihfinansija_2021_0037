@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
+import { useAuth } from "../context/AuthContext"; 
 
 const PER_PAGE = 10;
 const SORT_OPTIONS = [
@@ -28,6 +29,8 @@ export default function Transactions() {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+   
+   const { isPremium, refreshMe } = useAuth();
 
   // filteri
   const [q, setQ] = useState(""); // pretraga po opisu (backend: optional)
@@ -103,8 +106,8 @@ export default function Transactions() {
     fetchCategories();
     fetchTransactions(1);
 
-    client.get("/user")
-    .then(({ data }) => setRole(data?.role || "user"))
+     client.get("/user")
+    .then(({ data }) => setRole(data?.data?.role ?? data?.role ?? "user"))
     .catch(() => setRole("user"));
 
   }, []);
@@ -128,6 +131,7 @@ export default function Transactions() {
         description: form.description || "",
       };
       await client.post("/transactions", payload);
+      await refreshMe(); 
       setForm({ type: "expense", amount: "", date: "", category_id: "", description: "" });
       fetchTransactions(1);
     } catch (e) {
@@ -292,17 +296,17 @@ export default function Transactions() {
         {/* LISTA */}
         <section className="panel">
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-            <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
-           <Button
-  variant="secondary"
-  onClick={() => exportFile("pdf")}
-  disabled={!canPdf}
-  title={canPdf ? "" : "PDF export je samo za premium/admin korisnike"}
->
-  ⬇️ Export PDF
-</Button>
+    <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
+    {canPdf ? (
+      <Button variant="secondary" onClick={() => exportFile("pdf")}>⬇️ Export PDF</Button>
+    ) : (
+      <span className="muted" style={{ alignSelf: "center" }}>
+        PDF eksport je dostupan samo Premium korisnicima.
+      </span>
+    )}
+  </div>
 
-          </div>
+         
 
           {error && <div className="alert alert--error">{error}</div>}
           {loading ? (

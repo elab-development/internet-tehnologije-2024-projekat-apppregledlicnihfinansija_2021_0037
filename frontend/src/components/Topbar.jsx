@@ -9,6 +9,7 @@ export default function Topbar() {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
+
   useEffect(() => {
     const onDocClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
@@ -35,7 +36,7 @@ export default function Topbar() {
       padding: "12px 16px", borderBottom: "1px solid #eee", position: "sticky", top: 0, background: "#fff", zIndex: 10
     }}>
       <Link to="/dashboard" style={{ fontWeight: 700, textDecoration: "none", color: "#111" }}>💸 Lične finansije</Link>
-
+ 
       <nav style={{ display: "flex", gap: 12 }}>
         <Link to="/transactions">Transakcije</Link>
         <Link to="/budgets">Budžeti</Link>
