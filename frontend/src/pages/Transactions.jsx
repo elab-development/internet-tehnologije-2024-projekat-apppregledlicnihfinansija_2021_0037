@@ -4,7 +4,9 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
-import { useAuth } from "../context/AuthContext"; 
+import { useAuth } from "../context/AuthContext";
+import CurrencySwitcher from "../components/CurrencySwitcher";
+
 
 const PER_PAGE = 10;
 const SORT_OPTIONS = [
@@ -29,8 +31,8 @@ export default function Transactions() {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-   
-   const { isPremium, refreshMe } = useAuth();
+
+  const { isPremium, refreshMe } = useAuth();
 
   // filteri
   const [q, setQ] = useState(""); // pretraga po opisu (backend: optional)
@@ -55,8 +57,65 @@ export default function Transactions() {
     description: "",
   });
 
+  //valute 
+  const [currency, setCurrency] = useState(() => localStorage.getItem("currency") || "RSD");
+  const [fxRate, setFxRate] = useState(1);
+  function onCurrencyChange(cur) {
+    setCurrency(cur);
+    localStorage.setItem("currency", cur);
+  }
+
+
   const [role, setRole] = useState("user");
   const canPdf = useMemo(() => role === "premium" || role === "admin", [role]);
+  useEffect(() => {
+    let canceled = false;
+
+    async function loadRate() {
+      // ako je RSD, kurs je 1
+      if (currency === "RSD") {
+        if (!canceled) setFxRate(1);
+        return;
+      }
+
+      // 1) pokušaj: 1 RSD -> {currency}
+      try {
+        const { data } = await client.get("/rates/convert", {
+          params: { amount: 1, from: "RSD", to: currency },
+        });
+        const rate = Number(data?.rate ?? data?.result);
+        if (!canceled && rate && isFinite(rate) && rate > 0) {
+          setFxRate(rate);
+          return;
+        }
+      } catch (e) {
+        console.debug("convert RSD->", currency, "failed:", e);
+      }
+
+      // 2) invert: 1 {currency} -> RSD, pa recipročna vrednost
+      try {
+        const { data } = await client.get("/rates/convert", {
+          params: { amount: 1, from: currency, to: "RSD" },
+        });
+        const inv = Number(data?.rate ?? data?.result);
+        const rate = inv ? 1 / inv : NaN;
+        if (!canceled && rate && isFinite(rate) && rate > 0) {
+          setFxRate(rate);
+          return;
+        }
+      } catch (e) {
+        console.debug("convert", currency, "-> RSD failed:", e);
+      }
+
+      // 3) fallback
+      if (!canceled) setFxRate(1);
+    }
+
+    loadRate();
+    return () => { canceled = true; };
+  }, [currency]);
+
+
 
   // dohvat kategorija
   async function fetchCategories() {
@@ -106,9 +165,9 @@ export default function Transactions() {
     fetchCategories();
     fetchTransactions(1);
 
-     client.get("/user")
-    .then(({ data }) => setRole(data?.data?.role ?? data?.role ?? "user"))
-    .catch(() => setRole("user"));
+    client.get("/user")
+      .then(({ data }) => setRole(data?.data?.role ?? data?.role ?? "user"))
+      .catch(() => setRole("user"));
 
   }, []);
 
@@ -131,7 +190,7 @@ export default function Transactions() {
         description: form.description || "",
       };
       await client.post("/transactions", payload);
-      await refreshMe(); 
+      await refreshMe();
       window.dispatchEvent(new Event("transactions:changed"));
       setForm({ type: "expense", amount: "", date: "", category_id: "", description: "" });
       fetchTransactions(1);
@@ -234,6 +293,7 @@ export default function Transactions() {
                 ))}
               </select>
             </label>
+            <CurrencySwitcher value={currency} onChange={onCurrencyChange} />
             <div style={{ alignSelf: "end" }}>
               <Button type="submit" variant="secondary">Primeni</Button>
             </div>
@@ -297,17 +357,17 @@ export default function Transactions() {
         {/* LISTA */}
         <section className="panel">
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-    <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
-    {canPdf ? (
-      <Button variant="secondary" onClick={() => exportFile("pdf")}>⬇️ Export PDF</Button>
-    ) : (
-      <span className="muted" style={{ alignSelf: "center" }}>
-        PDF eksport je dostupan samo Premium korisnicima.
-      </span>
-    )}
-  </div>
+            <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
+            {canPdf ? (
+              <Button variant="secondary" onClick={() => exportFile("pdf")}>⬇️ Export PDF</Button>
+            ) : (
+              <span className="muted" style={{ alignSelf: "center" }}>
+                PDF eksport je dostupan samo Premium korisnicima.
+              </span>
+            )}
+          </div>
 
-         
+
 
           {error && <div className="alert alert--error">{error}</div>}
           {loading ? (
@@ -332,7 +392,7 @@ export default function Transactions() {
                   {items.map((t) => (
                     <tr key={t.id}>
                       <td>{t.id}</td>
-                      <td>{t.date ?? t.created_at?.slice(0,10) ?? "—"}</td>
+                      <td>{t.date ?? t.created_at?.slice(0, 10) ?? "—"}</td>
                       <td>
                         <span className={`type ${t.type}`}>
                           {t.type === "income" ? "Prihod" : t.type === "expense" ? "Trošak" : t.type}
@@ -340,7 +400,15 @@ export default function Transactions() {
                       </td>
                       <td>{t.category?.name ?? (t.category_id ? `#${t.category_id}` : "—")}</td>
                       <td className="muted">{t.description || "—"}</td>
-                      <td className="text-right">{fmt(t.amount)}</td>
+                      <td className="text-right">
+                        {fmt(t.amount)}
+                        {currency !== "RSD" && (
+                          <div className="muted">
+                            ≈ {(Number(t.amount) * fxRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                          </div>
+                        )}
+                      </td>
+
                       <td>
                         <Button variant="danger" onClick={() => handleDelete(t.id)}>Obriši</Button>
                       </td>
