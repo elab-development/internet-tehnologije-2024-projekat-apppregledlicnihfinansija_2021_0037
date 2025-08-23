@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
+import AlertsBell from "./AlertsBell"; 
 
 export default function Topbar() {
   const [open, setOpen] = useState(false);
@@ -43,6 +44,8 @@ export default function Topbar() {
         <Link to="/categories">Kategorije</Link>
         <Link to="/savings-goals">Ciljevi</Link>
       </nav>
+
+      <AlertsBell />
 
       <div ref={menuRef} style={{ position: "relative" }}>
         <button
