@@ -12,8 +12,8 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    
-     use HasApiTokens, HasFactory, Notifiable;
+
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -24,6 +24,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'points',
     ];
 
     /**
@@ -46,19 +48,33 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+             'points' => 'integer',
         ];
     }
 
-    public function transactions() {
+    public function transactions()
+    {
         return $this->hasMany(Transaction::class);
     }
-    
-    public function budgets() {
+
+    public function budgets()
+    {
         return $this->hasMany(Budget::class);
     }
-    
-    public function savingsGoals() {
+
+    public function savingsGoals()
+    {
         return $this->hasMany(SavingsGoal::class);
     }
-    
+
+    public function alerts()
+    {
+        return $this->hasMany(\App\Models\Alert::class);
+    }
+    public function pointsLogs()
+    {
+        return $this->hasMany(\App\Models\PointsLog::class);
+    }
+
+
 }

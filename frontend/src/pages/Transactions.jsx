@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
+import { useAuth } from "../context/AuthContext"; 
 
 const PER_PAGE = 10;
 const SORT_OPTIONS = [
@@ -12,6 +13,8 @@ const SORT_OPTIONS = [
   { value: "-amount", label: "Iznos ↓" },
   { value: "amount", label: "Iznos ↑" },
 ];
+
+
 
 function fmt(n) {
   if (n == null) return "—";
@@ -26,6 +29,8 @@ export default function Transactions() {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+   
+   const { isPremium, refreshMe } = useAuth();
 
   // filteri
   const [q, setQ] = useState(""); // pretraga po opisu (backend: optional)
@@ -49,6 +54,9 @@ export default function Transactions() {
     category_id: "",
     description: "",
   });
+
+  const [role, setRole] = useState("user");
+  const canPdf = useMemo(() => role === "premium" || role === "admin", [role]);
 
   // dohvat kategorija
   async function fetchCategories() {
@@ -97,7 +105,11 @@ export default function Transactions() {
   useEffect(() => {
     fetchCategories();
     fetchTransactions(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+     client.get("/user")
+    .then(({ data }) => setRole(data?.data?.role ?? data?.role ?? "user"))
+    .catch(() => setRole("user"));
+
   }, []);
 
   // submit filtera
@@ -119,6 +131,7 @@ export default function Transactions() {
         description: form.description || "",
       };
       await client.post("/transactions", payload);
+      await refreshMe(); 
       setForm({ type: "expense", amount: "", date: "", category_id: "", description: "" });
       fetchTransactions(1);
     } catch (e) {
@@ -283,9 +296,17 @@ export default function Transactions() {
         {/* LISTA */}
         <section className="panel">
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-            <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
-            <Button variant="secondary" onClick={() => exportFile("pdf")}>⬇️ Export PDF</Button>
-          </div>
+    <Button variant="secondary" onClick={() => exportFile("csv")}>⬇️ Export CSV</Button>
+    {canPdf ? (
+      <Button variant="secondary" onClick={() => exportFile("pdf")}>⬇️ Export PDF</Button>
+    ) : (
+      <span className="muted" style={{ alignSelf: "center" }}>
+        PDF eksport je dostupan samo Premium korisnicima.
+      </span>
+    )}
+  </div>
+
+         
 
           {error && <div className="alert alert--error">{error}</div>}
           {loading ? (

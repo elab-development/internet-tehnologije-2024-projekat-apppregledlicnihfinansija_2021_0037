@@ -7,49 +7,50 @@ import Button from "../components/Button";
 
 const PER_PAGE = 10;
 
-// tolerantno izvlačenje polja iz backenda
+// Tolerantno mapiranje polja iz backenda
 function pickView(g) {
   const name = g.name ?? g.title ?? g.label ?? `Cilj #${g.id}`;
   const description = g.description ?? g.desc ?? "";
-  const target =
-    g.target_amount ?? g.goal_amount ?? g.target ?? g.amount ?? null;
-  const saved =
-    g.current_amount ?? g.saved_amount ?? g.saved ?? g.progress_amount ?? 0;
+  const target = g.target_amount ?? g.goal_amount ?? g.target ?? g.amount ?? null;
+  const saved = g.current_amount ?? g.saved_amount ?? g.saved ?? g.progress_amount ?? 0;
   const dueDate = g.due_date ?? g.deadline ?? g.target_date ?? null;
   const pct = target ? Math.min(100, Math.round((Number(saved) / Number(target)) * 100)) : null;
   return { id: g.id, name, description, target, saved, dueDate, pct, raw: g };
 }
 
 export default function SavingsGoals() {
+  // lista + meta
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
 
-  // create form
+  // filter (pretraga po nazivu/opisu — backend može ignorisati ako nije podržano)
+  const [q, setQ] = useState("");
+
+  // kreiranje
   const [gName, setGName] = useState("");
   const [gTarget, setGTarget] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // lokalni inputi za “uplatu”
-  const [deposit, setDeposit] = useState({}); // { [id]: "100" }
+  // uplate po ID-u cilja
+  const [deposit, setDeposit] = useState({});
 
-  async function fetchGoals(p = 1, query = q) {
+  async function fetchGoals(p = 1, query = "") {
     setLoading(true);
     setError("");
     try {
-      const { data } = await client.get("/savings-goals", {
-        params: { page: p, per_page: PER_PAGE, q: query || undefined },
-      });
+      const params = { page: p, per_page: PER_PAGE };
+      if (query.trim()) params.q = query.trim();
+
+      const { data } = await client.get("/savings-goals", { params });
       const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
       setItems(list);
       setMeta(data?.meta ?? null);
       setPage(data?.meta?.current_page ?? p);
     } catch (e) {
-      setError(e?.response?.data?.message || "Greška pri čitanju ciljeva.");
+      setError(e?.response?.data?.message || "Greška pri učitavanju ciljeva.");
       setItems([]);
       setMeta(null);
     } finally {
@@ -58,8 +59,7 @@ export default function SavingsGoals() {
   }
 
   useEffect(() => {
-    fetchGoals(1, q);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchGoals(1, "");
   }, []);
 
   function onSearch(e) {
@@ -69,19 +69,16 @@ export default function SavingsGoals() {
 
   async function handleCreate(e) {
     e.preventDefault();
-    if (!gName.trim() || !gTarget) return;
     setCreating(true);
-    const payloadA = { name: gName.trim(), target_amount: Number(gTarget) };
-    const payloadB = { name: gName.trim(), target: Number(gTarget) };
     try {
-      try {
-        await client.post("/savings-goals", payloadA);
-      } catch (_) {
-        await client.post("/savings-goals", payloadB); // fallback na druga imena polja
-      }
+      const payload = {
+        name: gName,
+        target_amount: Number(gTarget),
+      };
+      await client.post("/savings-goals", payload);
       setGName("");
       setGTarget("");
-      await fetchGoals(1, q);
+      fetchGoals(1, q);
     } catch (e) {
       alert(e?.response?.data?.message || "Kreiranje cilja nije uspelo.");
     } finally {
@@ -89,41 +86,47 @@ export default function SavingsGoals() {
     }
   }
 
+  async function handleDeposit(id) {
+    const amount = Number(deposit[id]);
+    if (!amount || amount <= 0) return;
+
+    const g = items.find((x) => x.id === id);
+    if (!g) return;
+    const v = pickView(g);
+
+    // prvo probaj PATCH sa samo current_amount
+    try {
+      await client.patch(`/savings-goals/${id}`, {
+        current_amount: (Number(v.saved) || 0) + amount,
+      });
+    } catch {
+      // fallback: neki backend traži "pun" payload za PUT
+      try {
+        await client.put(`/savings-goals/${id}`, {
+          name: v.name,
+          target_amount: Number(v.target) || 0,
+          current_amount: (Number(v.saved) || 0) + amount,
+          ...(v.dueDate ? { due_date: v.dueDate } : {}),
+          description: v.description || "",
+        });
+      } catch (e2) {
+        alert(e2?.response?.data?.message || "Uplata nije uspela.");
+        return;
+      }
+    }
+
+    setDeposit((d) => ({ ...d, [id]: "" }));
+    fetchGoals(page, q);
+  }
+
   async function handleDelete(id) {
     if (!confirm("Obrisati ovaj cilj?")) return;
     try {
       await client.delete(`/savings-goals/${id}`);
-      fetchGoals(page, q);
+      const keepPage = meta?.current_page ?? page;
+      fetchGoals(keepPage, q);
     } catch (e) {
       alert(e?.response?.data?.message || "Brisanje nije uspelo.");
-    }
-  }
-
-  async function handleDeposit(id) {
-    const v = pickView(items.find((x) => x.id === id) || {});
-    const add = Number(deposit[id] || 0);
-    if (!add) return;
-    const newSaved = Number(v.saved || 0) + add;
-
-    // pokušaj sa različitim imenima polja
-    const bodyA = { current_amount: newSaved };
-    const bodyB = { saved_amount: newSaved };
-    const bodyC = { saved: newSaved };
-
-    try {
-      try {
-        await client.put(`/savings-goals/${id}`, bodyA);
-      } catch {
-        try {
-          await client.put(`/savings-goals/${id}`, bodyB);
-        } catch {
-          await client.put(`/savings-goals/${id}`, bodyC);
-        }
-      }
-      setDeposit((d) => ({ ...d, [id]: "" }));
-      fetchGoals(page, q);
-    } catch (e) {
-      alert(e?.response?.data?.message || "Ažuriranje iznosa nije uspelo.");
     }
   }
 
@@ -221,7 +224,7 @@ export default function SavingsGoals() {
                               style={{
                                 width: `${v.pct ?? 0}%`,
                                 height: "100%",
-                                background: v.pct >= 100 ? "#16a34a" : "#3b82f6",
+                                background: (v.pct ?? 0) >= 100 ? "#16a34a" : "#3b82f6",
                                 transition: "width .2s",
                               }}
                             />
@@ -241,9 +244,7 @@ export default function SavingsGoals() {
                               step="0.01"
                               placeholder="npr. 100"
                               value={deposit[v.id] ?? ""}
-                              onChange={(e) =>
-                                setDeposit((d) => ({ ...d, [v.id]: e.target.value }))
-                              }
+                              onChange={(e) => setDeposit((d) => ({ ...d, [v.id]: e.target.value }))}
                             />
                             <Button variant="secondary" onClick={() => handleDeposit(v.id)}>
                               Uplati +
@@ -287,4 +288,3 @@ export default function SavingsGoals() {
     </>
   );
 }
-

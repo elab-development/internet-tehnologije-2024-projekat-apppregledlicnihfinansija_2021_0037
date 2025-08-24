@@ -18,14 +18,19 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err?.response?.status === 401) {
+    const status = err?.response?.status ?? null;
+    const data = err?.response?.data;
+    const message =
+      (data && typeof data === "object" && (data.error || data.message)) ||
+      err?.message ||
+      "Greška u mreži ili serveru";
+
+    if (status === 401) {
       localStorage.removeItem("token");
-      // opcionalno: redirect na login
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+      // Preusmerenje rešava UI (AuthContext/route guard), ne interceptor
     }
-    return Promise.reject(err);
+
+    return Promise.reject({ status, message, data });
   }
 );
 
