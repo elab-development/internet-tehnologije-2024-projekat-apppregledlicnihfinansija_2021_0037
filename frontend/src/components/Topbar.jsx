@@ -44,6 +44,7 @@ export default function Topbar() {
         <Link to="/budgets">Budžeti</Link>
         <Link to="/categories">Kategorije</Link>
         <Link to="/savings-goals">Ciljevi</Link>
+        <Link to="/reports">Izveštaji</Link>
         {role === "admin" && <Link to="/admin">Admin</Link>}
       </nav>
 
