@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CategoryController as CategoryApiController;
 use App\Http\Controllers\Api\SavingsGoalController as SavingsGoalApiController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ExchangeController;
+use App\Http\Controllers\Api\AdminController;
 
 
 
@@ -37,6 +38,9 @@ Route::prefix('v1')->name('api.')->group(function () {
         Route::get('user', [AccountController::class, 'me'])->name('user'); // ako već nemaš svoj
         Route::post('account/upgrade', [AccountController::class, 'upgrade'])->name('account.upgrade');
 
+       Route::get('admin/stats', [\App\Http\Controllers\Api\AdminController::class, 'stats'])
+    ->middleware('role:admin')
+    ->name('admin.stats');
 
         Route::get('transactions/export', [\App\Http\Controllers\Api\TransactionController::class, 'export'])
             ->name('transactions.export');
