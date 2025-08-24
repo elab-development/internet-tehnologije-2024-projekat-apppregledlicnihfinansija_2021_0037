@@ -41,6 +41,17 @@ class TransactionController extends Controller
             $query->whereDate('date', '<=', $request->date('to'));
         }
 
+        if ($request->filled('q')) {
+    $q = (string) $request->query('q');
+    $query->where(function ($sub) use ($q) {
+        $sub->where('description', 'like', '%' . $q . '%')
+            ->orWhere('amount', 'like', '%' . $q . '%')
+            ->orWhereHas('category', function ($c) use ($q) {
+                $c->where('name', 'like', '%' . $q . '%');
+            });
+    });
+}
+
         // Sort (opciono): ?sort=-date ili ?sort=amount
         $sort = $request->get('sort', '-date');
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
@@ -51,6 +62,7 @@ class TransactionController extends Controller
         $query->orderBy($column, $direction);
 
         $page = $query->paginate($perPage);
+
 
         // Resource kolekcija (ima links + meta automatski)
         return TransactionResource::collection($page);

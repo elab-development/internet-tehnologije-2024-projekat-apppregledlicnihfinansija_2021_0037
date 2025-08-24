@@ -34,5 +34,7 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+     
+     'http_insecure' => env('HTTP_INSECURE', false),
 
 ];
