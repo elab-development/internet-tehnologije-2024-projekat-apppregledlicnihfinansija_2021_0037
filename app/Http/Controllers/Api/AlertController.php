@@ -34,4 +34,15 @@ class AlertController extends Controller
         if (!$alert->read_at) $alert->update(['read_at' => now()]);
         return response()->json(['data'=>$alert]);
     }
+
+
+    public function markAll(\Illuminate\Http\Request $request)
+{
+    \App\Models\Alert::where('user_id', $request->user()->id)
+        ->whereNull('read_at')
+        ->update(['read_at' => now()]);
+
+    return response()->json(['ok' => true]);
+}
+
 }

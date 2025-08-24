@@ -45,7 +45,7 @@ Route::prefix('v1')->name('api.')->group(function () {
             ->name('transactions.export.csv');
 
         Route::get('transactions/export.pdf', [\App\Http\Controllers\Api\TransactionController::class, 'export'])->name('transactions.export.pdf');
-        
+
         Route::middleware('throttle:10,1')->group(function () {
             Route::get('/rates/convert', [ExchangeController::class, 'convert'])->name('rates.convert');
             Route::get('/rates/rate', [ExchangeController::class, 'rate'])->name('rates.rate');
@@ -57,6 +57,9 @@ Route::prefix('v1')->name('api.')->group(function () {
         Route::get('alerts', [\App\Http\Controllers\Api\AlertController::class, 'index'])->name('alerts.index');
         Route::get('alerts/unread-count', [\App\Http\Controllers\Api\AlertController::class, 'unreadCount'])->name('alerts.unread_count');
         Route::patch('alerts/{alert}/read', [\App\Http\Controllers\Api\AlertController::class, 'markRead'])->name('alerts.mark_read');
+        Route::patch('alerts/read-all', [\App\Http\Controllers\Api\AlertController::class, 'markAll'])
+            ->name('alerts.mark_all');
+
 
 
         // auth
