@@ -16,6 +16,7 @@ class SavingsGoal extends Model
         'target_amount',
         'current_amount',
         'deadline',
+        'description',
     ];
 
     public function user() {

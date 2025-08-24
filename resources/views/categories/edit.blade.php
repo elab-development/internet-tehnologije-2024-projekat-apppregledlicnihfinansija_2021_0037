@@ -1,22 +1,32 @@
-@extends('layouts.app')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Izmeni kategoriju
+        </h2>
+    </x-slot>
 
-@section('title', 'Izmeni kategoriju')
+    <div class="py-6 max-w-md mx-auto sm:px-6 lg:px-8">
+        <div class="bg-white shadow-sm sm:rounded-lg p-6">
+            <form action="{{ route('categories.update', $category) }}" method="POST" class="space-y-4">
+                @csrf
+                @method('PUT')
 
-@section('content')
-    <h1>Izmeni kategoriju</h1>
+                <div>
+                    <label for="name" class="block font-medium text-gray-700">Ime kategorije:</label>
+                    <input type="text" name="name" id="name" value="{{ old('name', $category->name) }}" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    @error('name')
+                        <p class="text-red-600 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
 
-    <form action="{{ route('categories.update', $category) }}" method="POST">
-        @csrf
-        @method('PUT')
-        <label for="name">Ime kategorije:</label><br>
-        <input type="text" name="name" id="name" value="{{ old('name', $category->name) }}" required>
-        @error('name')
-            <div style="color: red;">{{ $message }}</div>
-        @enderror
-        <br><br>
-        <button type="submit">Sačuvaj izmene</button>
-    </form>
-
-    <br>
-    <a href="{{ route('categories.index') }}">Nazad na kategorije</a>
-@endsection
+                <div>
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Sačuvaj izmene
+                    </button>
+                    <a href="{{ route('categories.index') }}" class="ml-4 text-gray-600 hover:text-gray-900">Nazad na kategorije</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</x-app-layout>

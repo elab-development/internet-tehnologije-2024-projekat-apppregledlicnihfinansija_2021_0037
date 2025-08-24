@@ -34,8 +34,16 @@ return new class extends Migration
             $table->timestamps();
     
             // Strani ključevi
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('category_id')->references('id')->on('categories')->onDelete('set null');
+            $table->foreign('user_id', 'transactions_user_id_fk')
+      ->references('id')
+      ->on('users')
+      ->onDelete('cascade');
+
+        $table->foreign('category_id', 'transactions_category_id_fk')
+            ->references('id')
+            ->on('categories')
+            ->onDelete('set null');
+
         });
     }
 
