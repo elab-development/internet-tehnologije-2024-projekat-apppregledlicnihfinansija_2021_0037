@@ -12,12 +12,17 @@ export default function AlertsBell() {
     } catch {}
   }
 
-  useEffect(() => {
-    fetchUnread();
-    const onChanged = () => fetchUnread();
-    window.addEventListener("transactions:changed", onChanged);
-    return () => window.removeEventListener("transactions:changed", onChanged);
-  }, []);
+useEffect(() => {
+  fetchUnread();
+  const onChanged = () => fetchUnread();
+  window.addEventListener("transactions:changed", onChanged);
+  window.addEventListener("alerts:changed", onChanged);
+  return () => {
+    window.removeEventListener("transactions:changed", onChanged);
+    window.removeEventListener("alerts:changed", onChanged);
+  };
+}, []);
+
 
   return (
     <Link to="/alerts" className="alerts-bell" title="Notifikacije" style={{ position: "relative" }}>
