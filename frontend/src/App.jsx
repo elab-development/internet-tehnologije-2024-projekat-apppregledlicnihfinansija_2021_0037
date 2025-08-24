@@ -10,6 +10,7 @@ import SavingsGoals from "./pages/SavingsGoals";
 import Profile from "./pages/Profile";
 import ResetPassword from "./pages/ResetPassword";
 import Alerts from "./pages/Alerts";
+import Admin from "./pages/Admin";
 
 export default function App() {
   return (
@@ -17,7 +18,8 @@ export default function App() {
       {/* public */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-
+      <Route path="/reset-password" element={<ResetPassword />} />
+      
       {/* protected */}
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
@@ -25,8 +27,9 @@ export default function App() {
       <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
       <Route path="/savings-goals" element={<ProtectedRoute><SavingsGoals /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      
        <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
      
       
       
