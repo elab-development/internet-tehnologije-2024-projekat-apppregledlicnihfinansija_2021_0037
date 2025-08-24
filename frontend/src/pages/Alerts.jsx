@@ -35,19 +35,19 @@ export default function Alerts() {
   }
 
   async function markAll() {
-    if (!confirm("Označiti sve kao pročitane?")) return;
-    setMarking(true);
-    try {
-      // ako nemaš endpoint za sve, odradi serijski
-      for (const a of items.filter(x => !x.read_at)) {
-        // eslint-disable-next-line no-await-in-loop
-        await client.patch(`/alerts/${a.id}/read`);
-      }
-      await load();
-    } finally {
-      setMarking(false);
-    }
+  if (!confirm("Označiti sve kao pročitane?")) return;
+  setMarking(true);
+  try {
+    await client.patch("/alerts/read-all");
+    await load();
+    // obavesti zvonce da osveži broj
+    window.dispatchEvent(new Event("alerts:changed"));
+    window.dispatchEvent(new Event("transactions:changed")); 
+  } finally {
+    setMarking(false);
   }
+}
+
 
   return (
     <>
