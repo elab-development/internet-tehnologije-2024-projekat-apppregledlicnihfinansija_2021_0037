@@ -42,15 +42,15 @@ class TransactionController extends Controller
         }
 
         if ($request->filled('q')) {
-    $q = (string) $request->query('q');
-    $query->where(function ($sub) use ($q) {
-        $sub->where('description', 'like', '%' . $q . '%')
-            ->orWhere('amount', 'like', '%' . $q . '%')
-            ->orWhereHas('category', function ($c) use ($q) {
-                $c->where('name', 'like', '%' . $q . '%');
+            $q = (string) $request->query('q');
+            $query->where(function ($sub) use ($q) {
+                $sub->where('description', 'like', '%' . $q . '%')
+                    ->orWhere('amount', 'like', '%' . $q . '%')
+                    ->orWhereHas('category', function ($c) use ($q) {
+                        $c->where('name', 'like', '%' . $q . '%');
+                    });
             });
-    });
-}
+        }
 
         // Sort (opciono): ?sort=-date ili ?sort=amount
         $sort = $request->get('sort', '-date');
@@ -126,37 +126,10 @@ class TransactionController extends Controller
 
                     $justCrossed80 = ($prevSpent < $threshold80) && ($spent >= $threshold80);
                     $justExceeded = ($prevSpent <= $limit) && ($spent > $limit);
-
                     if ($justExceeded) {
-                        Gamification::alert(
-                            $request->user(),
-                            'budget_exceeded',
-                            'Prekoračen budžet',
-                            'Prešli ste limit za ovu kategoriju u ovom mesecu.',
-                            [
-                                'year' => $year,
-                                'month' => $month,
-                                'category_id' => $trx->category_id,
-                                'spent' => $spent,
-                                'limit' => $limit,
-                                'dedupe' => "budget-100-{$year}-{$month}-cat-{$trx->category_id}",
-                            ]
-                        );
+                        Gamification::alert($request->user(), 'budget_exceeded', 'Prekoračen budžet', 'Prešli ste limit za ovu kategoriju u ovom mesecu.', ['year' => $year, 'month' => $month, 'category_id' => $trx->category_id, 'spent' => $spent, 'limit' => $limit, 'dedupe' => "budget-100-{$year}-{$month}-cat-{$trx->category_id}",]);
                     } elseif ($justCrossed80) {
-                        Gamification::alert(
-                            $request->user(),
-                            'budget_warning',
-                            'Budžet na 80%',
-                            'Dostigli ste 80% mesečnog limita za ovu kategoriju.',
-                            [
-                                'year' => $year,
-                                'month' => $month,
-                                'category_id' => $trx->category_id,
-                                'spent' => $spent,
-                                'limit' => $limit,
-                                'dedupe' => "budget-80-{$year}-{$month}-cat-{$trx->category_id}",
-                            ]
-                        );
+                        Gamification::alert($request->user(), 'budget_warning', 'Budžet na 80%', 'Dostigli ste 80% mesečnog limita za ovu kategoriju.', ['year' => $year, 'month' => $month, 'category_id' => $trx->category_id, 'spent' => $spent, 'limit' => $limit, 'dedupe' => "budget-80-{$year}-{$month}-cat-{$trx->category_id}",]);
                     }
 
                 }
