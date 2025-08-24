@@ -8,7 +8,8 @@ export default function Topbar() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  
+  const { logout, role } = useAuth();
 
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function Topbar() {
         <Link to="/budgets">Budžeti</Link>
         <Link to="/categories">Kategorije</Link>
         <Link to="/savings-goals">Ciljevi</Link>
+        {role === "admin" && <Link to="/admin">Admin</Link>}
       </nav>
 
       <AlertsBell />
