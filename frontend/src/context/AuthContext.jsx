@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
 
   async function refreshMe() {
     try {
-      const res = await client.get("/auth/me").catch(() => client.get("/user"));
+      const res = await client.get("/user");
       const u = res?.data?.data ?? res?.data ?? null;
       setUser(u);
     } catch {

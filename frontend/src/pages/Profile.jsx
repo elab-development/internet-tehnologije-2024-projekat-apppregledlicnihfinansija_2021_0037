@@ -31,15 +31,12 @@ export default function Profile() {
       setLoading(true);
       setErr("");
       try {
-        // 1) Učitaj korisnika (me -> fallback na /user)
+        
         let u;
-        try {
-          const { data } = await client.get("/auth/me");
-          u = data?.data ?? data;
-        } catch {
+        
           const { data } = await client.get("/user");
           u = data?.data ?? data;
-        }
+     
         if (!mounted) return;
         setUser(u);
 
