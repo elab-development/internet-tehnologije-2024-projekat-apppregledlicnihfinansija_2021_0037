@@ -23,8 +23,8 @@ class Gamification
         $p = (int) round($points);
         if ($p === 0) return;
 
-        // (opciono) premijum-only gate: ako ti treba, odkomentariši:
-        // if (!self::isPremium($user)) return;
+        
+         if (!self::isPremium($user)) return;
 
         // Multiplikator (po želji promeni)
         $mult = self::isPremium($user) ? 1.5 : 1.0;

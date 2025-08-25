@@ -18,7 +18,7 @@ export default function Profile() {
   const [err, setErr] = useState("");
   const [upgrading, setUpgrading] = useState(false);
   const [msg, setMsg] = useState("");
-  const { user: authUser, points, isPremium } = useAuth();
+  const { user: authUser, points, isPremium, refreshMe } = useAuth();
   const viewUser = user ?? authUser;
 
 
@@ -143,11 +143,11 @@ export default function Profile() {
               <b>{viewUser?.role ?? "user"}</b>
             </div>
 
-            <div style={{ marginTop: 6 }}>
-              Poeni: <b>{Number(points ?? 0)}</b>
-              {isPremium && (
-                <span
-                  style={{
+            {isPremium ? (
+             <div style={{ marginTop: 6 }}>
+               Poeni: <b>{Number(points ?? 0)}</b>
+               <span
+                 style={{
                     marginLeft: 8,
                     padding: "2px 8px",
                     borderRadius: 999,
@@ -157,9 +157,9 @@ export default function Profile() {
                   }}
                 >
                   Premium
-                </span>
-              )}
-            </div>
+              </span>
+             </div>
+            ) : null}
           </div>
 
           <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
