@@ -141,25 +141,36 @@ export default function Transactions() {
         per_page: PER_PAGE,
         sort,
       };
-      if (q.trim()) params.q = q.trim();          // ako si implementirala pretragu po opisu
+      if (q.trim()) params.q = q.trim();          
       if (type !== "all") params.type = type;
       if (categoryId) params.category_id = categoryId;
       if (from) params.from = from;
       if (to) params.to = to;
 
-      const { data } = await client.get("/transactions", { params });
-      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setItems(list);
-      setMeta(data?.meta ?? null);
-      setPage(data?.meta?.current_page ?? p);
-    } catch (e) {
-      setError(e?.response?.data?.message || "Greška pri učitavanju transakcija.");
-      setItems([]);
-      setMeta(null);
-    } finally {
-      setLoading(false);
+      const url = categoryId
+      ? `/categories/${categoryId}/transactions`
+      : `/transactions`;
+
+    
+    if (!categoryId && categoryId !== "") {
+      
+    } else {
+      delete params.category_id;
     }
+
+    const { data } = await client.get(url, { params });
+    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    setItems(list);
+    setMeta(data?.meta ?? null);
+    setPage(data?.meta?.current_page ?? p);
+  } catch (e) {
+    setError(e?.response?.data?.message || "Greška pri učitavanju transakcija.");
+    setItems([]);
+    setMeta(null);
+  } finally {
+    setLoading(false);
   }
+}
 
   useEffect(() => {
     fetchCategories();

@@ -185,13 +185,31 @@ class TransactionController extends Controller
     public function byCategory(Request $request, Category $category)
     {
         $perPage = max(1, min((int) $request->query('per_page', 15), 100));
-
-        $page = Transaction::with('category')
+    
+        $query = Transaction::with('category')
             ->where('user_id', $request->user()->id)
-            ->where('category_id', $category->id)
-            ->orderByDesc('date')
-            ->paginate($perPage);
-
+            ->where('category_id', $category->id);
+    
+        // (isti filteri kao u index)
+        if ($request->filled('type'))   $query->where('type', $request->string('type'));
+        if ($request->filled('from'))   $query->whereDate('date', '>=', $request->date('from'));
+        if ($request->filled('to'))     $query->whereDate('date', '<=', $request->date('to'));
+        if ($request->filled('q')) {
+            $q = (string) $request->query('q');
+            $query->where(function ($sub) use ($q) {
+                $sub->where('description', 'like', "%{$q}%")
+                    ->orWhere('amount', 'like', "%{$q}%");
+            });
+        }
+    
+        $sort = $request->get('sort', '-date');
+        $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
+        $column = ltrim($sort, '-');
+        if (!in_array($column, ['date','amount','created_at'])) $column = 'date';
+        $query->orderBy($column, $direction);
+    
+        $page = $query->paginate($perPage);
+    
         return TransactionResource::collection($page);
     }
 
@@ -294,7 +312,7 @@ class TransactionController extends Controller
 
         $callback = function () use ($transactions) {
             $out = fopen('php://output', 'w');
-            // UTF-8 BOM (da Excel lijepo čita čćžđš)
+            // UTF-8 BOM (da Excel lepo čita čćžđš)
             fwrite($out, "\xEF\xBB\xBF");
 
             // header
