@@ -6,6 +6,8 @@ import TextInput from "../components/TextInput";
 import Button from "../components/Button";
 import { useAuth } from "../context/AuthContext";
 import CurrencySwitcher from "../components/CurrencySwitcher";
+import Breadcrumbs from "../components/Breadcrumbs";
+import useQueryParams from "../hooks/useQueryParams";
 
 
 const PER_PAGE = 10;
@@ -35,13 +37,17 @@ export default function Transactions() {
   const { isPremium, refreshMe } = useAuth();
 
   // filteri
-  const [q, setQ] = useState(""); // pretraga po opisu (backend: optional)
-  const [type, setType] = useState("all"); // all | income | expense
-  const [categoryId, setCategoryId] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [sort, setSort] = useState("-date");
-  const [page, setPage] = useState(1);
+  const [qp, setQp] = useQueryParams({
+    q: "",
+    type: "all",
+    categoryId: "",
+    from: "",
+    to: "",
+    sort: "-date",
+    page: 1,
+  });
+
+  const { q, type, categoryId, from, to, sort, page } = qp;
 
   // kategorije (za select)
   const [cats, setCats] = useState([]);
@@ -131,46 +137,37 @@ export default function Transactions() {
     }
   }
 
-  // dohvat transakcija
+  
   async function fetchTransactions(p = 1) {
     setLoading(true);
     setError("");
     try {
-      const params = {
-        page: p,
-        per_page: PER_PAGE,
-        sort,
-      };
-      if (q.trim()) params.q = q.trim();          
+      const nested = !!categoryId; // ako imamo kategoriju, koristimo ugnježdenu rutu
+      const url = nested ? `/categories/${categoryId}/transactions` : `/transactions`;
+  
+      const params = { page: p, per_page: PER_PAGE, sort };
+      if (q.trim()) params.q = q.trim();
       if (type !== "all") params.type = type;
-      if (categoryId) params.category_id = categoryId;
+      if (!nested && categoryId) params.category_id = categoryId; // samo za /transactions
       if (from) params.from = from;
       if (to) params.to = to;
-
-      const url = categoryId
-      ? `/categories/${categoryId}/transactions`
-      : `/transactions`;
-
-    
-    if (!categoryId && categoryId !== "") {
-      
-    } else {
-      delete params.category_id;
+  
+      const { data } = await client.get(url, { params });
+      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      setItems(list);
+      setMeta(data?.meta ?? null);
+  
+      const current = data?.meta?.current_page ?? p ?? 1;
+      setQp("page", current); // sinhronizuj "page" u query string-u
+    } catch (e) {
+      setError(e?.response?.data?.message || "Greška pri učitavanju transakcija.");
+      setItems([]);
+      setMeta(null);
+    } finally {
+      setLoading(false);
     }
-
-    const { data } = await client.get(url, { params });
-    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-    setItems(list);
-    setMeta(data?.meta ?? null);
-    setPage(data?.meta?.current_page ?? p);
-  } catch (e) {
-    setError(e?.response?.data?.message || "Greška pri učitavanju transakcija.");
-    setItems([]);
-    setMeta(null);
-  } finally {
-    setLoading(false);
   }
-}
+  
 
   useEffect(() => {
     fetchCategories();
@@ -185,6 +182,7 @@ export default function Transactions() {
   // submit filtera
   function onSearch(e) {
     e?.preventDefault?.();
+    setQp("page", 1);
     fetchTransactions(1);
   }
 
@@ -256,6 +254,7 @@ export default function Transactions() {
       <Topbar />
       <main className="container">
         <header className="hero">
+        <Breadcrumbs />
           <h1>Transakcije</h1>
           <p className="muted">Pregled, filtriranje, dodavanje i eksport podataka.</p>
         </header>
@@ -270,11 +269,11 @@ export default function Transactions() {
               label="Pretraga"
               placeholder="opis…"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => setQp("q", e.target.value)}
             />
             <label>
               <div className="label">Tip</div>
-              <select value={type} onChange={(e) => setType(e.target.value)}>
+              <select value={type}  onChange={(e) => setQp("type", e.target.value)}>
                 <option value="all">Svi</option>
                 <option value="expense">Trošak</option>
                 <option value="income">Prihod</option>
@@ -284,7 +283,7 @@ export default function Transactions() {
               <div className="label">Kategorija</div>
               <select
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                onChange={(e) => setQp("categoryId", e.target.value)}
                 disabled={catsLoading}
               >
                 {catOptions.map((c) => (
@@ -294,11 +293,12 @@ export default function Transactions() {
                 ))}
               </select>
             </label>
-            <TextInput label="Od datuma" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <TextInput label="Do datuma" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <TextInput label="Od datuma" type="date" value={from} onChange={(e) => setQp("from", e.target.value)} />
+            <TextInput label="Do datuma" type="date" value={to} onChange={(e) => setQp("to", e.target.value)} />
+
             <label>
               <div className="label">Sort</div>
-              <select value={sort} onChange={(e) => setSort(e.target.value)}>
+              <select value={sort}  onChange={(e) => setQp("sort", e.target.value)}>
                 {SORT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
@@ -432,7 +432,12 @@ export default function Transactions() {
                 <Button
                   variant="secondary"
                   disabled={!canPrev}
-                  onClick={() => canPrev && fetchTransactions((meta?.current_page ?? page) - 1)}
+                  onClick={() => {
+                    if (!canPrev) return;
+                    const np = (meta?.current_page ?? page ?? 1) - 1;
+                    setQp("page", np);
+                    fetchTransactions(np);
+                  }}
                 >
                   ← Prethodna
                 </Button>
@@ -442,7 +447,12 @@ export default function Transactions() {
                 <Button
                   variant="secondary"
                   disabled={!canNext}
-                  onClick={() => canNext && fetchTransactions((meta?.current_page ?? page) + 1)}
+                  onClick={() => {
+                    if (!canNext) return;
+                    const np = (meta?.current_page ?? page ?? 1) + 1;
+                    setQp("page", np);
+                    fetchTransactions(np);
+                  }}
                 >
                   Sledeća →
                 </Button>

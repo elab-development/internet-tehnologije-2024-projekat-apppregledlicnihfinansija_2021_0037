@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const PER_PAGE = 10;
 function splitYearMonth(yyyyMm) {
@@ -174,6 +175,7 @@ async function fetchBudgets(p = 1) {
       <Topbar />
       <main className="container">
         <header className="hero">
+        <Breadcrumbs />
           <h1>Budžeti</h1>
           <p className="muted">Definiši mesečne limite po kategorijama i prati potrošnju.</p>
         </header>

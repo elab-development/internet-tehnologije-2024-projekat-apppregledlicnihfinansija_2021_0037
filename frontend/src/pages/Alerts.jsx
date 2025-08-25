@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import Topbar from "../components/Topbar";
 import client from "../api/client";
 import Button from "../components/Button";
+import Breadcrumbs from "../components/Breadcrumbs";
+
 
 export default function Alerts() {
   const [items, setItems] = useState([]);
@@ -54,6 +56,7 @@ export default function Alerts() {
       <Topbar />
       <main className="container" style={{ maxWidth: 900, padding: "16px" }}>
         <header style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 12 }}>
+        <Breadcrumbs />
           <h1 style={{ margin: 0 }}>Notifikacije</h1>
           {items.some(a => !a.read_at) && (
             <Button variant="secondary" onClick={markAll} loading={marking}>

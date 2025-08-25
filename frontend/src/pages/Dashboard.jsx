@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import client from "../api/client";
 import Topbar from "../components/Topbar";
 import CardLink from "../components/Cardlink";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 export default function Dashboard() {
   const [recent, setRecent] = useState([]);
@@ -20,6 +21,7 @@ export default function Dashboard() {
       <Topbar />
       <main className="container">
         <section className="hero">
+        <Breadcrumbs />
           <h1>Dobro došli nazad </h1>
           <p className="muted">
             Upravljajte svojim transakcijama, budžetima, kategorijama i ciljevima štednje na jednom mestu.

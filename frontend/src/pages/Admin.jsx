@@ -3,6 +3,8 @@ import { Navigate } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import client from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import Breadcrumbs from "../components/Breadcrumbs";
+
 
 export default function Admin() {
   const { isAuthenticated, role } = useAuth();
@@ -32,6 +34,7 @@ export default function Admin() {
     <>
       <Topbar />
       <main className="container" style={{ maxWidth: 1000, padding: 16 }}>
+      <Breadcrumbs />
         <h1>Admin — Statistika</h1>
         {err && <div className="alert alert--error">{err}</div>}
         {loading ? (

@@ -7,7 +7,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell
 } from "recharts";
-
+import Breadcrumbs from "../components/Breadcrumbs";
 export default function Reports() {
   // monthly
   const [mData, setMData] = useState([]);
@@ -63,6 +63,7 @@ export default function Reports() {
       <Topbar />
       <main className="container">
         <header className="hero">
+        <Breadcrumbs />
           <h1>Izveštaji</h1>
           <p className="muted">Grafički prikaz finansija — pregled po mesecima i po kategorijama.</p>
         </header>
