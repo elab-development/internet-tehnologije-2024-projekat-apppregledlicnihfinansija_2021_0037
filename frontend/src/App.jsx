@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import ResetPassword from "./pages/ResetPassword";
 import Alerts from "./pages/Alerts";
 import Admin from "./pages/Admin";
+import Reports from "./pages/Reports";
 
 export default function App() {
   return (
@@ -30,6 +31,8 @@ export default function App() {
       
        <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+
+       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
      
       
       

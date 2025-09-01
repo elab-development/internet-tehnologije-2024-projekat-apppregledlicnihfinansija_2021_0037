@@ -64,7 +64,11 @@ Route::prefix('v1')->name('api.')->group(function () {
         Route::patch('alerts/read-all', [\App\Http\Controllers\Api\AlertController::class, 'markAll'])
             ->name('alerts.mark_all');
 
-
+            Route::get('reports/monthly', [\App\Http\Controllers\Api\ReportController::class, 'monthlyTotals'])
+            ->name('reports.monthly');
+        
+        Route::get('reports/categories', [\App\Http\Controllers\Api\ReportController::class, 'categoryBreakdown'])
+            ->name('reports.categories');
 
         // auth
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
