@@ -18,13 +18,13 @@ class Gamification
         return ($user->role ?? null) === 'premium';
     }
 
-    public static function award(User $user, int|float $points, string $reason, array $meta = []): void
+    public static function award(User $user, int|float $points, string $reason, array $meta = []): int
     {
         $p = (int) round($points);
-        if ($p === 0) return;
+        if ($p === 0) return 0;
 
-        // (opciono) premijum-only gate: ako ti treba, odkomentariši:
-        // if (!self::isPremium($user)) return;
+       
+        if (!self::isPremium($user)) return 0;
 
         // Multiplikator (po želji promeni)
         $mult = self::isPremium($user) ? 1.5 : 1.0;
@@ -32,7 +32,7 @@ class Gamification
         // Cap po dodeli (anti-spam)
         $cap   = 50;
         $final = (int) round(min($cap, max(0, $p)) * $mult);
-        if ($final <= 0) return;
+        if ($final <= 0) return 0;
 
         DB::transaction(function () use ($user, $final, $reason, $meta) {
             // Ako postoji kolona users.points, uvećaj je (ako ne postoji, preskoči — neće puknuti)
@@ -51,7 +51,10 @@ class Gamification
                     'meta'    => $meta,
                 ]);
             }
-        });
+           
+        }); 
+        
+        return $final;
     }
 
     public static function alert(User $user, string $type, string $title, ?string $message = null, array $meta = []): void

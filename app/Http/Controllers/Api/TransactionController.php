@@ -13,7 +13,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Budget;
 use App\Services\Gamification;
 use Carbon\Carbon;
-
+use Illuminate\Support\Str;
 
 
 
@@ -29,32 +29,30 @@ class TransactionController extends Controller
 
         // Filtri
         if ($request->filled('type')) {
-            $query->where('type', $request->string('type')); // income|expense
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->integer('category_id'));
-        }
-        if ($request->filled('from')) {
-            $query->whereDate('date', '>=', $request->date('from'));
-        }
-        if ($request->filled('to')) {
-            $query->whereDate('date', '<=', $request->date('to'));
-        }
-
-        if ($request->filled('q')) {
-            $q = (string) $request->query('q');
-            $query->where(function ($sub) use ($q) {
-                $sub->where('description', 'like', '%' . $q . '%')
-                    ->orWhere('amount', 'like', '%' . $q . '%')
-                    ->orWhereHas('category', function ($c) use ($q) {
-                        $c->where('name', 'like', '%' . $q . '%');
-                    });
+    $query->where('type', (string) $request->input('type')); // income|expense
+}
+if ($request->filled('category_id')) {
+    $query->where('category_id', (int) $request->input('category_id'));
+}
+if ($request->filled('from')) {
+    $query->whereDate('date', '>=', Carbon::parse($request->input('from')));
+}
+if ($request->filled('to')) {
+    $query->whereDate('date', '<=', Carbon::parse($request->input('to')));
+}
+if ($request->filled('q')) {
+    $q = (string) $request->input('q');
+    $query->where(function ($sub) use ($q) {
+        $sub->where('description', 'like', "%{$q}%")
+            ->orWhere('amount', 'like', "%{$q}%")
+            ->orWhereHas('category', function ($c) use ($q) {
+                $c->where('name', 'like', "%{$q}%");
             });
-        }
-
+    });
+}
         // Sort (opciono): ?sort=-date ili ?sort=amount
         $sort = $request->get('sort', '-date');
-        $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
+       $direction = Str::startsWith($sort, '-') ? 'desc' : 'asc';
         $column = ltrim($sort, '-');
         if (!in_array($column, ['date', 'amount', 'created_at'])) {
             $column = 'date';
@@ -84,17 +82,21 @@ class TransactionController extends Controller
         $trx = Transaction::create($data);
 
         $points = $this->pointsForTransaction($trx);
-        Gamification::award(
+         $awarded = 0;
+         if ($request->user()->role === 'premium') {
+        $awarded = Gamification::award(
             $request->user(),
             $points,
             'transaction.created',
             [
                 'transaction_id' => $trx->id,
-                'amount' => $trx->amount,
-                'type' => $trx->type,
-                'category_id' => $trx->category_id,
+                'amount'         => $trx->amount,
+                'type'           => $trx->type,
+                'category_id'    => $trx->category_id,
+                'dedupe'         => "trx:{$trx->id}",
             ]
         );
+          }
 
         // 5.2 Provera budžeta i slanje alert-a
         if ($trx->type === 'expense') {
@@ -136,10 +138,15 @@ class TransactionController extends Controller
             }
         }
 
-        return (new TransactionResource($trx->load('category')))
-            ->response()
-            ->setStatusCode(201);
-    }
+       return (new TransactionResource($trx->load('category')))
+        ->additional([
+            'points_awarded' => (int) $awarded,
+            'total_points'   => Gamification::total($request->user()),
+            'toast'          => $awarded ? "Dobili ste {$awarded} novih poena 🎉" : null,
+        ])
+        ->response()
+        ->setStatusCode(201);
+}
 
     // GET /api/v1/transactions/{transaction}
     public function show(Request $request, Transaction $transaction)
@@ -191,19 +198,20 @@ class TransactionController extends Controller
             ->where('category_id', $category->id);
     
         // (isti filteri kao u index)
-        if ($request->filled('type'))   $query->where('type', $request->string('type'));
-        if ($request->filled('from'))   $query->whereDate('date', '>=', $request->date('from'));
-        if ($request->filled('to'))     $query->whereDate('date', '<=', $request->date('to'));
-        if ($request->filled('q')) {
-            $q = (string) $request->query('q');
-            $query->where(function ($sub) use ($q) {
-                $sub->where('description', 'like', "%{$q}%")
-                    ->orWhere('amount', 'like', "%{$q}%");
-            });
-        }
+        if ($request->filled('type'))   $query->where('type', (string) $request->input('type'));
+if ($request->filled('from'))   $query->whereDate('date', '>=', Carbon::parse($request->input('from')));
+if ($request->filled('to'))     $query->whereDate('date', '<=', Carbon::parse($request->input('to')));
+if ($request->filled('q')) {
+    $q = (string) $request->input('q');
+    $query->where(function ($sub) use ($q) {
+        $sub->where('description', 'like', "%{$q}%")
+            ->orWhere('amount', 'like', "%{$q}%");
+    });
+}
     
         $sort = $request->get('sort', '-date');
-        $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
+        $direction = Str::startsWith($sort, '-') ? 'desc' : 'asc';
+
         $column = ltrim($sort, '-');
         if (!in_array($column, ['date','amount','created_at'])) $column = 'date';
         $query->orderBy($column, $direction);
@@ -263,23 +271,11 @@ class TransactionController extends Controller
 
 
         // isti filteri kao u index:
-        if ($request->filled('type')) {
-            $query->where('type', $request->string('type'));
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->integer('category_id'));
-        }
-        if ($request->filled('from')) {
-            $query->whereDate('date', '>=', $request->date('from'));
-        }
-        if ($request->filled('to')) {
-            $query->whereDate('date', '<=', $request->date('to'));
-        }
-
-        if ($request->filled('q')) {
-            $q = $request->string('q');
-            $query->where('description', 'like', '%' . $q . '%');
-        }
+        if ($request->filled('type'))        $query->where('type', (string) $request->input('type'));
+if ($request->filled('category_id')) $query->where('category_id', (int) $request->input('category_id'));
+if ($request->filled('from'))        $query->whereDate('date', '>=', Carbon::parse($request->input('from')));
+if ($request->filled('to'))          $query->whereDate('date', '<=', Carbon::parse($request->input('to')));
+if ($request->filled('q'))           $query->where('description', 'like', '%' . (string) $request->input('q') . '%');
 
 
         $transactions = $query->orderBy('date')->get();

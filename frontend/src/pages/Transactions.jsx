@@ -33,6 +33,9 @@ export default function Transactions() {
   const [error, setError] = useState("");
 
   const { isPremium, refreshMe } = useAuth();
+  const [flash, setFlash] = useState(null);
+
+
 
   // filteri
   const [q, setQ] = useState(""); // pretraga po opisu (backend: optional)
@@ -64,6 +67,7 @@ export default function Transactions() {
     setCurrency(cur);
     localStorage.setItem("currency", cur);
   }
+
 
 
   const [role, setRole] = useState("user");
@@ -141,36 +145,36 @@ export default function Transactions() {
         per_page: PER_PAGE,
         sort,
       };
-      if (q.trim()) params.q = q.trim();          
+      if (q.trim()) params.q = q.trim();
       if (type !== "all") params.type = type;
       if (categoryId) params.category_id = categoryId;
       if (from) params.from = from;
       if (to) params.to = to;
 
       const url = categoryId
-      ? `/categories/${categoryId}/transactions`
-      : `/transactions`;
+        ? `/categories/${categoryId}/transactions`
+        : `/transactions`;
 
-    
-    if (!categoryId && categoryId !== "") {
-      
-    } else {
-      delete params.category_id;
+
+      if (!categoryId && categoryId !== "") {
+
+      } else {
+        delete params.category_id;
+      }
+
+      const { data } = await client.get(url, { params });
+      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      setItems(list);
+      setMeta(data?.meta ?? null);
+      setPage(data?.meta?.current_page ?? p);
+    } catch (e) {
+      setError(e?.response?.data?.message || "Greška pri učitavanju transakcija.");
+      setItems([]);
+      setMeta(null);
+    } finally {
+      setLoading(false);
     }
-
-    const { data } = await client.get(url, { params });
-    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-    setItems(list);
-    setMeta(data?.meta ?? null);
-    setPage(data?.meta?.current_page ?? p);
-  } catch (e) {
-    setError(e?.response?.data?.message || "Greška pri učitavanju transakcija.");
-    setItems([]);
-    setMeta(null);
-  } finally {
-    setLoading(false);
   }
-}
 
   useEffect(() => {
     fetchCategories();
@@ -200,7 +204,21 @@ export default function Transactions() {
         category_id: form.category_id ? Number(form.category_id) : null,
         description: form.description || "",
       };
-      await client.post("/transactions", payload);
+
+        const { data } = await client.post("/transactions", payload);
+
+         if (data?.toast) {
+        setFlash(data.toast);
+      } else if ((data?.points_awarded ?? 0) > 0) {
+        setFlash(`Dobili ste ${data.points_awarded} novih poena 🎉`);
+      }
+      if (data?.toast || (data?.points_awarded ?? 0) > 0) {
+        setTimeout(() => setFlash(null), 4500);
+      }
+
+    
+
+      
       await refreshMe();
       window.dispatchEvent(new Event("transactions:changed"));
       setForm({ type: "expense", amount: "", date: "", category_id: "", description: "" });
@@ -364,6 +382,9 @@ export default function Transactions() {
             </div>
           </form>
         </section>
+        
+
+        {flash && <div style={styles.alertOk}>{flash}</div>}
 
         {/* LISTA */}
         <section className="panel">
@@ -454,3 +475,16 @@ export default function Transactions() {
     </>
   );
 }
+
+const styles = {
+  alertOk: {
+    border: "1px solid #b7e1c1",
+    background: "#eefaf0",
+    color: "#084c1f",
+    borderRadius: 8,
+    padding: "10px 12px",
+    marginBottom: 12,
+  },
+};
+
+
