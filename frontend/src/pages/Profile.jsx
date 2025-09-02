@@ -31,12 +31,12 @@ export default function Profile() {
       setLoading(true);
       setErr("");
       try {
-        
+
         let u;
-        
-          const { data } = await client.get("/user");
-          u = data?.data ?? data;
-     
+
+        const { data } = await client.get("/user");
+        u = data?.data ?? data;
+
         if (!mounted) return;
         setUser(u);
 
@@ -143,9 +143,10 @@ export default function Profile() {
               <b>{viewUser?.role ?? "user"}</b>
             </div>
 
-            <div style={{ marginTop: 6 }}>
-              Poeni: <b>{Number(points ?? 0)}</b>
-              {isPremium && (
+            {isPremium && (
+              <div style={{ marginTop: 6 }}>
+                Poeni: <b>{Number(points ?? 0)}</b>
+
                 <span
                   style={{
                     marginLeft: 8,
@@ -158,8 +159,9 @@ export default function Profile() {
                 >
                   Premium
                 </span>
-              )}
-            </div>
+
+              </div>
+            )}
           </div>
 
           <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
