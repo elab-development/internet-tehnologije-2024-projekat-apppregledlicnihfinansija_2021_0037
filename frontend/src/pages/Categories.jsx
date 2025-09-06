@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const PER_PAGE = 10;
 
@@ -28,6 +29,41 @@ export default function Categories() {
   const [createName, setCreateName] = useState("");
   const [createDesc, setCreateDesc] = useState("");
   const [creating, setCreating] = useState(false);
+
+  //izmeni
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function startEdit(cat) {
+    setEditingId(cat.id);
+    setEditName(cat.name || "");
+    setEditDesc(cat.description || "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName("");
+    setEditDesc("");
+  }
+
+  async function handleUpdate() {
+    if (!editingId || !editName.trim()) return;
+    setSavingEdit(true);
+    try {
+      await client.put(`/categories/${editingId}`, {
+        name: editName.trim(),
+        description: editDesc.trim() || null,
+      });
+      await fetchCategories(page, q);
+      cancelEdit();
+    } catch (e) {
+      alert(e?.response?.data?.message || "Ažuriranje nije uspelo.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function fetchCategories(p = 1, query = q) {
     setLoading(true);
@@ -94,6 +130,7 @@ export default function Categories() {
   return (
     <>
       <Topbar />
+      <Breadcrumbs />
       <main className="container">
         <header className="hero">
           <h1>Kategorije</h1>
@@ -160,18 +197,61 @@ export default function Categories() {
                 <tbody>
                   {items.map((c) => {
                     const v = pickCategoryView(c);
+                    const isEditing = editingId === v.id;
                     return (
                       <tr key={v.id}>
                         <td>{v.id}</td>
-                        <td>{v.name}</td>
-                        <td>{v.description || "—"}</td>
-                        <td className="text-right">{v.txCount ?? "—"}</td>
+
                         <td>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <Button variant="danger" onClick={() => handleDelete(v.id)}>
-                              Obriši
-                            </Button>
-                          </div>
+                          {isEditing ? (
+                            <input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              placeholder="Naziv"
+                              style={{ width: "100%" }}
+                            />
+                          ) : (
+                            v.name
+                          )}
+                        </td>
+
+                        <td>
+                          {isEditing ? (
+                            <input
+                              value={editDesc}
+                              onChange={(e) => setEditDesc(e.target.value)}
+                              placeholder="Opis (opciono)"
+                              style={{ width: "100%" }}
+                            />
+                          ) : (
+                            v.description || "—"
+                          )}
+                        </td>
+
+                        <td className="text-right" style={{ width: 140 }}>
+                          {v.txCount ?? "—"}
+                        </td>
+
+                        <td style={{ width: 200 }}>
+                          {isEditing ? (
+                            <>
+                              <Button variant="secondary" onClick={handleUpdate} loading={savingEdit}>
+                                Sačuvaj
+                              </Button>{" "}
+                              <Button variant="danger" onClick={cancelEdit}>
+                                Otkaži
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="secondary" onClick={() => startEdit(v)}>
+                                Izmeni
+                              </Button>{" "}
+                              <Button variant="danger" onClick={() => handleDelete(v.id)}>
+                                Obriši
+                              </Button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     );

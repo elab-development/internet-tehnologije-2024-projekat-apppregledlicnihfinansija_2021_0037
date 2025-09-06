@@ -6,7 +6,7 @@ import TextInput from "../components/TextInput";
 import Button from "../components/Button";
 import { useAuth } from "../context/AuthContext";
 import CurrencySwitcher from "../components/CurrencySwitcher";
-
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const PER_PAGE = 10;
 const SORT_OPTIONS = [
@@ -59,6 +59,16 @@ export default function Transactions() {
     category_id: "",
     description: "",
   });
+
+  //izmena
+  const [editingId, setEditingId] = useState(null);
+const [editForm, setEditForm] = useState({
+  type: "expense",
+  amount: "",
+  date: "",
+  category_id: "",
+  description: "",
+});
 
   //valute 
   const [currency, setCurrency] = useState(() => localStorage.getItem("currency") || "RSD");
@@ -243,6 +253,41 @@ export default function Transactions() {
     }
   }
 
+  function startEdit(t) {
+  setEditingId(t.id);
+  setEditForm({
+    type: t.type ?? "expense",
+    amount: String(t.amount ?? ""),
+    date: (t.date ?? t.created_at?.slice(0,10) ?? ""),
+    category_id: t.category_id ?? "",
+    description: t.description ?? "",
+  });
+}
+
+function cancelEdit() {
+  setEditingId(null);
+}
+
+async function handleUpdate(e) {
+  e?.preventDefault?.();
+  if (!editingId) return;
+
+  try {
+    const payload = {
+      type: editForm.type,
+      amount: Number(editForm.amount),
+      date: editForm.date,
+      category_id: editForm.category_id ? Number(editForm.category_id) : null,
+      description: editForm.description || "",
+    };
+    await client.put(`/transactions/${editingId}`, payload);
+    setEditingId(null);
+    await fetchTransactions(meta?.current_page ?? page);
+  } catch (err) {
+    alert(err?.response?.data?.message || "Ažuriranje nije uspelo.");
+  }
+}
+
   // eksport CSV/PDF (sa Bearer headerom)
   async function exportFile(fmt) {
     try {
@@ -272,6 +317,7 @@ export default function Transactions() {
   return (
     <>
       <Topbar />
+      <Breadcrumbs />
       <main className="container">
         <header className="hero">
           <h1>Transakcije</h1>
@@ -421,32 +467,115 @@ export default function Transactions() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((t) => (
-                    <tr key={t.id}>
-                      <td>{t.id}</td>
-                      <td>{t.date ?? t.created_at?.slice(0, 10) ?? "—"}</td>
-                      <td>
-                        <span className={`type ${t.type}`}>
-                          {t.type === "income" ? "Prihod" : t.type === "expense" ? "Trošak" : t.type}
-                        </span>
-                      </td>
-                      <td>{t.category?.name ?? (t.category_id ? `#${t.category_id}` : "—")}</td>
-                      <td className="muted">{t.description || "—"}</td>
-                      <td className="text-right">
-                        {fmt(t.amount)}
-                        {currency !== "RSD" && (
-                          <div className="muted">
-                            ≈ {(Number(t.amount) * fxRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
-                          </div>
-                        )}
-                      </td>
+  {items.map((t) => {
+    const isEditing = editingId === t.id;
+    return (
+      <tr key={t.id}>
+        <td>{t.id}</td>
 
-                      <td>
-                        <Button variant="danger" onClick={() => handleDelete(t.id)}>Obriši</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+        {/* Datum */}
+        <td>
+          {isEditing ? (
+            <input
+              type="date"
+              value={editForm.date}
+              onChange={(e) => setEditForm(f => ({ ...f, date: e.target.value }))}
+            />
+          ) : (
+            t.date ?? t.created_at?.slice(0, 10) ?? "—"
+          )}
+        </td>
+
+        {/* Tip */}
+        <td>
+          {isEditing ? (
+            <select
+              value={editForm.type}
+              onChange={(e) => setEditForm(f => ({ ...f, type: e.target.value }))}
+            >
+              <option value="expense">Trošak</option>
+              <option value="income">Prihod</option>
+            </select>
+          ) : (
+            <span className={`type ${t.type}`}>
+              {t.type === "income" ? "Prihod" : t.type === "expense" ? "Trošak" : t.type}
+            </span>
+          )}
+        </td>
+
+        {/* Kategorija */}
+        <td>
+          {isEditing ? (
+            <select
+              value={editForm.category_id}
+              onChange={(e) => setEditForm(f => ({ ...f, category_id: e.target.value }))}
+            >
+              <option value="">—</option>
+              {cats.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          ) : (
+            t.category?.name ?? (t.category_id ? `#${t.category_id}` : "—")
+          )}
+        </td>
+
+        {/* Opis */}
+        <td className="muted">
+          {isEditing ? (
+            <input
+              type="text"
+              value={editForm.description}
+              onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Opis…"
+              style={{ width: "100%" }}
+            />
+          ) : (
+            t.description || "—"
+          )}
+        </td>
+
+        {/* Iznos */}
+        <td className="text-right">
+          {isEditing ? (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={editForm.amount}
+              onChange={(e) => setEditForm(f => ({ ...f, amount: e.target.value }))}
+              style={{ width: 120, textAlign: "right" }}
+            />
+          ) : (
+            <>
+              {fmt(t.amount)}
+              {currency !== "RSD" && (
+                <div className="muted">
+                  ≈ {(Number(t.amount) * fxRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                </div>
+              )}
+            </>
+          )}
+        </td>
+
+        {/* Akcije */}
+        <td>
+          {isEditing ? (
+            <>
+              <Button variant="secondary" onClick={handleUpdate}>Sačuvaj</Button>{" "}
+              <Button variant="danger" onClick={cancelEdit}>Otkaži</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => startEdit(t)}>Izmeni</Button>{" "}
+              <Button variant="danger" onClick={() => handleDelete(t.id)}>Obriši</Button>
+            </>
+          )}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
               </table>
 
               <div className="pager" style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>

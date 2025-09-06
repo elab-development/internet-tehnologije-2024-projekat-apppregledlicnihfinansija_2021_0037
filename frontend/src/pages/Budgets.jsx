@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const PER_PAGE = 10;
 function splitYearMonth(yyyyMm) {
@@ -34,15 +35,15 @@ export default function Budgets() {
   const [error, setError] = useState("");
 
   // filteri
-  const [q, setQ] = useState("");             
+  const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [month, setMonth] = useState("");       
+  const [month, setMonth] = useState("");
   const [page, setPage] = useState(1);
 
- 
-const [amountMin, setAmountMin] = useState("");
-const [amountMax, setAmountMax] = useState("");
-const [sort, setSort] = useState("-created_at");
+
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
+  const [sort, setSort] = useState("-created_at");
 
   // kategorije
   const [cats, setCats] = useState([]);
@@ -50,12 +51,60 @@ const [sort, setSort] = useState("-created_at");
 
   // kreiranje
   const [creating, setCreating] = useState(false);
-const [form, setForm] = useState({
-  amount: "",
-  month: "",           
-  category_id: "",
-  description: "",      
-});
+  const [form, setForm] = useState({
+    amount: "",
+    month: "",
+    category_id: "",
+    description: "",
+  });
+
+  //izmena
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    amount: "",
+    month: "",        // "YYYY-MM"
+    category_id: "",
+    description: "",
+  });
+
+  function ym(b) {
+    const mm = String(b.month ?? "").padStart(2, "0");
+    return b.year && b.month ? `${b.year}-${mm}` : "";
+  }
+
+  function startEdit(b) {
+    setEditingId(b.id);
+    setEditForm({
+      amount: String(b.amount ?? b.limit ?? ""),
+      month: ym(b),
+      category_id: b.category_id ?? "",
+      description: b.description ?? "",
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function handleUpdate(e) {
+    e?.preventDefault?.();
+    if (!editingId) return;
+    try {
+      const { year, month: m } = splitYearMonth(editForm.month);
+      const payload = {
+        amount: Number(editForm.amount),
+        year,
+        month: m,
+        category_id: editForm.category_id ? Number(editForm.category_id) : null,
+        description: editForm.description || "",
+      };
+      await client.put(`/budgets/${editingId}`, payload);
+      setEditingId(null);
+      await fetchBudgets(meta?.current_page ?? page);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Ažuriranje nije uspelo.");
+    }
+  }
 
   // dohvat kategorija
   async function fetchCategories() {
@@ -72,33 +121,33 @@ const [form, setForm] = useState({
   }
 
   // dohvat budžeta
-async function fetchBudgets(p = 1) {
-  setLoading(true);
-  setError("");
-  try {
-    const params = { page: p, per_page: PER_PAGE, sort };
-    if (categoryId) params.category_id = Number(categoryId);
-    if (month) {
-      const { year, month: m } = splitYearMonth(month);
-      params.year = year;
-      params.month = m;
-    }
-    if (amountMin) params.amount_min = Number(amountMin);
-    if (amountMax) params.amount_max = Number(amountMax);
+  async function fetchBudgets(p = 1) {
+    setLoading(true);
+    setError("");
+    try {
+      const params = { page: p, per_page: PER_PAGE, sort };
+      if (categoryId) params.category_id = Number(categoryId);
+      if (month) {
+        const { year, month: m } = splitYearMonth(month);
+        params.year = year;
+        params.month = m;
+      }
+      if (amountMin) params.amount_min = Number(amountMin);
+      if (amountMax) params.amount_max = Number(amountMax);
 
-    const { data } = await client.get("/budgets", { params });
-    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-    setItems(list);
-    setMeta(data?.meta ?? null);
-    setPage(data?.meta?.current_page ?? p);
-  } catch (e) {
-    setError(e?.response?.data?.message || "Greška pri učitavanju budžeta.");
-    setItems([]);
-    setMeta(null);
-  } finally {
-    setLoading(false);
+      const { data } = await client.get("/budgets", { params });
+      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      setItems(list);
+      setMeta(data?.meta ?? null);
+      setPage(data?.meta?.current_page ?? p);
+    } catch (e) {
+      setError(e?.response?.data?.message || "Greška pri učitavanju budžeta.");
+      setItems([]);
+      setMeta(null);
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   useEffect(() => {
     fetchCategories();
@@ -114,38 +163,38 @@ async function fetchBudgets(p = 1) {
 
   // kreiranje novog budžeta
   async function handleCreate(e) {
-  e.preventDefault();
-  setCreating(true);
-  try {
-    const { year, month: m } = splitYearMonth(form.month);
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const { year, month: m } = splitYearMonth(form.month);
 
-    const payload = {
-      category_id: Number(form.category_id),   
-      amount: Number(form.amount),            
-      month: m,                                
-      year,                                    
-      description: form.description || "",     
-    };
+      const payload = {
+        category_id: Number(form.category_id),
+        amount: Number(form.amount),
+        month: m,
+        year,
+        description: form.description || "",
+      };
 
-    await client.post("/budgets", payload);
-    setForm({ amount: "", month: "", category_id: "", description: "" });
-    fetchBudgets(1);
-  } catch (e) {
-    const errs = e?.response?.data?.errors;
-    const msg = e?.response?.data?.message || "Kreiranje nije uspelo.";
-    alert(
-      msg +
+      await client.post("/budgets", payload);
+      setForm({ amount: "", month: "", category_id: "", description: "" });
+      fetchBudgets(1);
+    } catch (e) {
+      const errs = e?.response?.data?.errors;
+      const msg = e?.response?.data?.message || "Kreiranje nije uspelo.";
+      alert(
+        msg +
         (errs
           ? "\n" +
-            Object.entries(errs)
-              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-              .join("\n")
+          Object.entries(errs)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+            .join("\n")
           : "")
-    );
-  } finally {
-    setCreating(false);
+      );
+    } finally {
+      setCreating(false);
+    }
   }
-}
 
 
 
@@ -172,6 +221,7 @@ async function fetchBudgets(p = 1) {
   return (
     <>
       <Topbar />
+      <Breadcrumbs />
       <main className="container">
         <header className="hero">
           <h1>Budžeti</h1>
@@ -181,67 +231,67 @@ async function fetchBudgets(p = 1) {
         {/* FILTERI */}
         <section className="panel" style={{ marginBottom: 16 }}>
           <form
-  onSubmit={onSearch}
-  style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr auto" }}
->
-  <label>
-    <div className="label">Kategorija</div>
-    <select
-      value={categoryId}
-      onChange={(e) => setCategoryId(e.target.value)}
-      disabled={catsLoading}
-    >
-      {catOptions.map((c) => (
-        <option key={c.id ?? "all"} value={c.id ?? ""}>
-          {c.name}
-        </option>
-      ))}
-    </select>
-  </label>
+            onSubmit={onSearch}
+            style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr auto" }}
+          >
+            <label>
+              <div className="label">Kategorija</div>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                disabled={catsLoading}
+              >
+                {catOptions.map((c) => (
+                  <option key={c.id ?? "all"} value={c.id ?? ""}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-  <TextInput
-    label="Mesec"
-    type="month"
-    value={month}
-    onChange={(e) => setMonth(e.target.value)}
-  />
+            <TextInput
+              label="Mesec"
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            />
 
-  <TextInput
-    label="Iznos min"
-    type="number"
-    min="0"
-    step="0.01"
-    value={amountMin}
-    onChange={(e) => setAmountMin(e.target.value)}
-  />
+            <TextInput
+              label="Iznos min"
+              type="number"
+              min="0"
+              step="0.01"
+              value={amountMin}
+              onChange={(e) => setAmountMin(e.target.value)}
+            />
 
-  <TextInput
-    label="Iznos max"
-    type="number"
-    min="0"
-    step="0.01"
-    value={amountMax}
-    onChange={(e) => setAmountMax(e.target.value)}
-  />
+            <TextInput
+              label="Iznos max"
+              type="number"
+              min="0"
+              step="0.01"
+              value={amountMax}
+              onChange={(e) => setAmountMax(e.target.value)}
+            />
 
-  <label>
-    <div className="label">Sort</div>
-    <select value={sort} onChange={(e) => setSort(e.target.value)}>
-      <option value="-created_at">Najnovije</option>
-      <option value="created_at">Najstarije</option>
-      <option value="-amount">Iznos ↓</option>
-      <option value="amount">Iznos ↑</option>
-      <option value="year">Godina ↑</option>
-      <option value="-year">Godina ↓</option>
-      <option value="month">Mesec ↑</option>
-      <option value="-month">Mesec ↓</option>
-    </select>
-  </label>
+            <label>
+              <div className="label">Sort</div>
+              <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                <option value="-created_at">Najnovije</option>
+                <option value="created_at">Najstarije</option>
+                <option value="-amount">Iznos ↓</option>
+                <option value="amount">Iznos ↑</option>
+                <option value="year">Godina ↑</option>
+                <option value="-year">Godina ↓</option>
+                <option value="month">Mesec ↑</option>
+                <option value="-month">Mesec ↓</option>
+              </select>
+            </label>
 
-  <div style={{ alignSelf: "end" }}>
-    <Button type="submit" variant="secondary">Primeni</Button>
-  </div>
-</form>
+            <div style={{ alignSelf: "end" }}>
+              <Button type="submit" variant="secondary">Primeni</Button>
+            </div>
+          </form>
 
         </section>
 
@@ -253,43 +303,43 @@ async function fetchBudgets(p = 1) {
             style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 160px 160px 1fr 2fr auto" }}
           >
             <TextInput
-  label="Iznos (limit)"
-  type="number"
-  min="0"
-  step="0.01"
-  value={form.amount}
-  onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} 
-  required
-/>
+              label="Iznos (limit)"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              required
+            />
 
-<TextInput
-  label="Mesec"
-  type="month"
-  value={form.month}
-  onChange={(e) => setForm((f) => ({ ...f, month: e.target.value }))} 
-  required
-/>
+            <TextInput
+              label="Mesec"
+              type="month"
+              value={form.month}
+              onChange={(e) => setForm((f) => ({ ...f, month: e.target.value }))}
+              required
+            />
 
-<label>
-  <div className="label">Kategorija</div>
-  <select
-    value={form.category_id}
-    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))} 
-    required
-  >
-    <option value="">— izaberi —</option>
-    {cats.map((c) => (
-      <option key={c.id} value={c.id}>{c.name}</option>
-    ))}
-  </select>
-</label>
+            <label>
+              <div className="label">Kategorija</div>
+              <select
+                value={form.category_id}
+                onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
+                required
+              >
+                <option value="">— izaberi —</option>
+                {cats.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
 
-<TextInput
-  label="Opis (opciono)"
-  placeholder="npr. mesečni limit za hranu"
-  value={form.description}
-  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-/>
+            <TextInput
+              label="Opis (opciono)"
+              placeholder="npr. mesečni limit za hranu"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            />
             <div style={{ alignSelf: "end" }}>
               <Button type="submit" loading={creating}>Sačuvaj</Button>
             </div>
@@ -317,36 +367,99 @@ async function fetchBudgets(p = 1) {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((b) => (
-                    <tr key={b.id}>
-                      <td>{b.id}</td>
-                      <td>
-  <div style={{ fontWeight: 600 }}>
-    {b.category?.name ?? (b.category_id ? `#${b.category_id}` : "—")}
-  </div>
-  {b.description ? (
-    <div className="muted" style={{ fontSize: 12 }}>{b.description}</div>
-  ) : null}
-</td>
+                  {items.map((b) => {
+                    const isEditing = editingId === b.id;
+                    return (
+                      <tr key={b.id}>
+                        <td>{b.id}</td>
 
-                      <td>
-                       
-  {b.year && b.month
-    ? `${b.year}-${String(b.month).padStart(2, "0")}`
-    : "—"}
+                        {/* Opis / (ovde držimo opis i dodatne info) */}
+                        <td>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              placeholder="Opis (opciono)"
+                              value={editForm.description}
+                              onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))}
+                              style={{ width: "100%" }}
+                            />
+                          ) : (
+                            <>
+                              <div style={{ fontWeight: 600 }}>
+                                {b.category?.name ?? (b.category_id ? `#${b.category_id}` : "—")}
+                              </div>
+                              {b.description ? (
+                                <div className="muted" style={{ fontSize: 12 }}>{b.description}</div>
+                              ) : null}
+                            </>
+                          )}
+                        </td>
 
+                        {/* Period (YYYY-MM) */}
+                        <td style={{ width: 200 }}>
+                          {isEditing ? (
+                            <input
+                              type="month"
+                              value={editForm.month}
+                              onChange={(e) => setEditForm(f => ({ ...f, month: e.target.value }))}
+                            />
+                          ) : (
+                            (b.year && b.month) ? `${b.year}-${String(b.month).padStart(2, "0")}` : "—"
+                          )}
+                        </td>
 
-                      </td>
-                      <td>{b.category?.name ?? (b.category_id ? `#${b.category_id}` : "—")}</td>
-                      <td className="text-right">
-                        {Number(b.amount ?? b.limit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td>
-                        <Button variant="danger" onClick={() => handleDelete(b.id)}>Obriši</Button>
-                      </td>
-                    </tr>
-                  ))}
+                        {/* Kategorija */}
+                        <td style={{ width: 180 }}>
+                          {isEditing ? (
+                            <select
+                              value={editForm.category_id}
+                              onChange={(e) => setEditForm(f => ({ ...f, category_id: e.target.value }))}
+                            >
+                              <option value="">— izaberi —</option>
+                              {cats.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            b.category?.name ?? (b.category_id ? `#${b.category_id}` : "—")
+                          )}
+                        </td>
+
+                        {/* Limit / Iznos */}
+                        <td className="text-right" style={{ width: 140 }}>
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editForm.amount}
+                              onChange={(e) => setEditForm(f => ({ ...f, amount: e.target.value }))}
+                              style={{ width: 120, textAlign: "right" }}
+                            />
+                          ) : (
+                            Number(b.amount ?? b.limit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          )}
+                        </td>
+
+                        {/* Akcije */}
+                        <td style={{ width: 160 }}>
+                          {isEditing ? (
+                            <>
+                              <Button variant="secondary" onClick={handleUpdate}>Sačuvaj</Button>{" "}
+                              <Button variant="danger" onClick={cancelEdit}>Otkaži</Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="secondary" onClick={() => startEdit(b)}>Izmeni</Button>{" "}
+                              <Button variant="danger" onClick={() => handleDelete(b.id)}>Obriši</Button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+
               </table>
 
               <div className="pager" style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>

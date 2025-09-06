@@ -4,6 +4,7 @@ import Topbar from "../components/Topbar";
 import client from "../api/client";
 import TextInput from "../components/TextInput";
 import Button from "../components/Button";
+import Breadcrumbs from "../components/Breadcrumbs";
 
 const PER_PAGE = 10;
 
@@ -36,6 +37,31 @@ export default function SavingsGoals() {
 
   // uplate po ID-u cilja
   const [deposit, setDeposit] = useState({});
+
+  //izmeni
+  // edit
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    target_amount: "",
+    due_date: "",
+    description: "",
+  });
+
+  function startEdit(goal) {
+    const v = pickView(goal);
+    setEditingId(v.id);
+    setEditForm({
+      name: v.name || "",
+      target_amount: v.target ?? "",
+      due_date: v.dueDate ?? "",
+      description: v.description || "",
+    });
+  }
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
 
   async function fetchGoals(p = 1, query = "") {
     setLoading(true);
@@ -119,6 +145,43 @@ export default function SavingsGoals() {
     fetchGoals(page, q);
   }
 
+  async function handleUpdate(e) {
+    e?.preventDefault?.();
+    if (!editingId) return;
+
+    // prvo probaj PATCH sa “delimičnim” payload-om
+    try {
+      const payload = {
+        name: editForm.name,
+        target_amount: Number(editForm.target_amount),
+        ...(editForm.due_date ? { due_date: editForm.due_date } : {}),
+        description: editForm.description || "",
+      };
+      await client.patch(`/savings-goals/${editingId}`, payload);
+      setEditingId(null);
+      fetchGoals(page, q);
+      return;
+    } catch (_) { }
+
+    // fallback PUT sa očuvanjem current_amount
+    try {
+      const g = items.find((x) => x.id === editingId);
+      const v = g ? pickView(g) : {};
+      await client.put(`/savings-goals/${editingId}`, {
+        name: editForm.name,
+        target_amount: Number(editForm.target_amount) || 0,
+        current_amount: Number(v.saved) || 0,
+        ...(editForm.due_date ? { due_date: editForm.due_date } : {}),
+        description: editForm.description || "",
+      });
+      setEditingId(null);
+      fetchGoals(page, q);
+    } catch (e2) {
+      alert(e2?.response?.data?.message || "Izmena nije uspela.");
+    }
+  }
+
+
   async function handleDelete(id) {
     if (!confirm("Obrisati ovaj cilj?")) return;
     try {
@@ -136,6 +199,7 @@ export default function SavingsGoals() {
   return (
     <>
       <Topbar />
+      <Breadcrumbs />
       <main className="container">
         <header className="hero">
           <h1>Ciljevi štednje</h1>
@@ -252,9 +316,14 @@ export default function SavingsGoals() {
                           </div>
                         </td>
                         <td>
-                          <Button variant="danger" onClick={() => handleDelete(v.id)}>
-                            Obriši
-                          </Button>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <Button variant="secondary" onClick={() => startEdit(g)}>
+                              Izmeni
+                            </Button>
+                            <Button variant="danger" onClick={() => handleDelete(v.id)}>
+                              Obriši
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
